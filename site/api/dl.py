@@ -83,7 +83,7 @@ async def app(scope, receive, send):
     except Exception:
         return await reply_json(send, 422, {'error': 'Could not read that link.'})
     try:
-        resp = await asyncio.to_thread(urllib.request.urlopen, urllib.request.Request(media, headers=headers), 20)
+        resp = await asyncio.to_thread(lambda: urllib.request.urlopen(urllib.request.Request(media, headers=headers), timeout=20))
     except Exception:
         return await reply_json(send, 502, {'error': 'The site refused the download.'})
     length = resp.headers.get('Content-Length')
