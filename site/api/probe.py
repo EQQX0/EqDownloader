@@ -9,7 +9,7 @@ import ipaddress
 import json
 import socket
 from http.server import BaseHTTPRequestHandler
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, quote, urlparse
 
 import yt_dlp
 
@@ -48,8 +48,14 @@ def size_text(n):
     return f'{n / 1_000_000:.0f} MB' if n >= 1_000_000 else f'{max(1, round(n / 1000))} KB'
 
 
-def pick_formats(info):
+def pick_formats(info, page_url, proxy):
     out = []
+
+    def link(f):
+        if proxy:
+            return '/api/dl?url=' + quote(page_url, safe='') + '&f=' + quote(str(f.get('format_id')), safe='')
+        return f['url']
+
     seen = set()
     # TikTok lists a watermarked copy next to the clean one; never offer it.
     fmts = [f for f in info.get('formats') or []
@@ -62,18 +68,18 @@ def pick_formats(info):
         seen.add(h)
         size = f.get('filesize') or f.get('filesize_approx')
         label = f'{h}p' if h else 'Video'
-        out.append({'kind': 'video', 'label': f"{label} {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': f['url']})
+        out.append({'kind': 'video', 'label': f"{label} {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': link(f)})
         if len(out) == 4:
             break
     audio = [f for f in fmts if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
     if audio:
         f = sorted(audio, key=lambda f: (f.get('abr') or 0, f.get('ext') == 'm4a'), reverse=True)[0]
         size = f.get('filesize') or f.get('filesize_approx')
-        out.append({'kind': 'audio', 'label': f"Audio {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': f['url']})
+        out.append({'kind': 'audio', 'label': f"Audio {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': link(f)})
     return out
 
 
-def probe(url: str):
+def probe(url: str, force_proxy: bool = False):
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -86,7 +92,10 @@ def probe(url: str):
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(url, download=False)
-    formats = pick_formats(info)
+        # Sites that set cookies while the page is read (TikTok) give media links a browser cannot fetch alone,
+        # so those files are streamed through /api/dl, which carries the cookies.
+        proxy = force_proxy or any(True for _ in ydl.cookiejar)
+    formats = pick_formats(info, url, proxy)
     return {
         'title': info.get('title') or 'Untitled',
         'duration': info.get('duration'),
@@ -125,7 +134,7 @@ class handler(BaseHTTPRequestHandler):
         if bad:
             return self._send(400, {'error': bad})
         try:
-            result = probe(url)
+            result = probe(url, force_proxy=(parse_qs(urlparse(self.path).query).get('proxy') or [''])[0] == '1')
         except yt_dlp.utils.DownloadError as e:
             return self._send(422, {'error': explain(str(e)), 'detail': str(e)[:240]})
         except Exception:

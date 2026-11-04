@@ -35,6 +35,9 @@
   "functions": {
     "api/probe.py": {
       "maxDuration": 60
+    },
+    "api/dl.py": {
+      "maxDuration": 60
     }
   }
 }

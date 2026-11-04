@@ -19,7 +19,7 @@
   // The finder: ask /api/probe for the file list, then show plain links the browser downloads itself.
   const form = document.getElementById('finder');
   const out = document.getElementById('result');
-  const safe = (u) => typeof u === 'string' && /^https?:\/\//.test(u);
+  const safe = (u) => typeof u === 'string' && /^(https?:\/\/|\/api\/dl\?)/.test(u);
   const say = (text) => { out.textContent = ''; const p = document.createElement('p'); p.textContent = text; out.append(p); };
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
@@ -43,7 +43,8 @@
       for (const f of data.formats) {
         if (!safe(f.url)) continue;
         const a = document.createElement('a');
-        a.className = 'button'; a.href = f.url; a.rel = 'noopener noreferrer'; a.target = '_blank'; a.setAttribute('download', '');
+        a.className = 'button'; a.href = f.url; a.setAttribute('download', '');
+        if (!f.url.startsWith('/')) { a.rel = 'noopener noreferrer'; a.target = '_blank'; }
         a.textContent = f.label + (f.size ? ', ' + f.size : '');
         list.append(a);
       }
