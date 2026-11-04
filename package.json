@@ -1,0 +1,9 @@
+{
+  "name": "eqdownload",
+  "private": true,
+  "version": "0.0.0",
+  "workspaces": ["ui", "desktop"],
+  "scripts": {
+    "test": "npm test --workspaces --if-present"
+  }
+}
