@@ -4,9 +4,11 @@ package app.eqdownload
 object ProgressParser {
     private val SPEED = Regex("""\bat\s+(\d+(?:\.\d+)?)\s*(B|[KMGT]iB)/s""")
 
+    private val ARIA2_SPEED = Regex("""DL:(\d+(?:\.\d+)?)(B|[KMGT]iB)""")
+
     /** Bytes per second from a `[download] ... at 1.50MiB/s ETA ...` line, or null when yt-dlp printed Unknown. */
     fun speedBps(line: String): Long? {
-        val m = SPEED.find(line) ?: return null
+        val m = SPEED.find(line) ?: ARIA2_SPEED.find(line) ?: return null
         val n = m.groupValues[1].toDoubleOrNull() ?: return null
         val mult = when (m.groupValues[2]) {
             "B" -> 1L

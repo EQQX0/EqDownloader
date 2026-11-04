@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DownloadItem, EngineError } from '@eq/ui/engine';
 import { runEngineContract } from '@eq/ui/engine/contract';
-import { buildArgs, mapStderr, parseProgressLine, YtDlpEngine } from './ytdlp';
+import { buildArgs, mapStderr, parseAria2Line, parseProgressLine, YtDlpEngine } from './ytdlp';
 
 const FAKE = fileURLToPath(new URL('../../test/fake-ytdlp.mjs', import.meta.url));
 
@@ -30,6 +30,21 @@ function waitFor(e: YtDlpEngine, pred: (i: DownloadItem) => boolean): Promise<Do
     });
   });
 }
+
+describe('parseAria2Line', () => {
+  it('reads percent, speed and eta from an aria2 summary line', () => {
+    expect(parseAria2Line('[#2089b0 400KiB/33MiB(1%) CN:8 DL:1.5MiB ETA:4m51s]')).toEqual({
+      percent: 1, speedBps: 1572864, etaSec: 291,
+    });
+    expect(parseAria2Line('[#2089b0 33MiB/33MiB(99%) CN:1 DL:900KiB ETA:1h2m3s]')?.etaSec).toBe(3723);
+    expect(parseAria2Line('[#2089b0 0B/0B(0%) CN:1 DL:0B]')).toEqual({ percent: 0, speedBps: 0, etaSec: null });
+  });
+
+  it('ignores lines that are not aria2 progress', () => {
+    expect(parseAria2Line('[youtube] extracting')).toBeNull();
+    expect(parseAria2Line(' 17.4%|2206|0')).toBeNull();
+  });
+});
 
 describe('parseProgressLine', () => {
   it('parses percent, speed and eta', () => {

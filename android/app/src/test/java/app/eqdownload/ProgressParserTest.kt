@@ -27,4 +27,10 @@ class ProgressParserTest {
         assertNull(ProgressParser.eta(-1L))
         assertEquals(4L, ProgressParser.eta(4L))
     }
+
+    @Test
+    fun speedFromAria2SummaryLine() {
+        assertEquals(1_572_864L, ProgressParser.speedBps("[#2089b0 400KiB/33MiB(1%) CN:8 DL:1.5MiB ETA:4m51s]"))
+        assertEquals(900L, ProgressParser.speedBps("[#2089b0 1KiB/33MiB(0%) CN:1 DL:900B]"))
+    }
 }

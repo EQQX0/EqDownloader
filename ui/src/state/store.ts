@@ -170,6 +170,17 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       tick = null;
     }
   };
+  // The engines' time-left estimates jump around. This keeps a smoothed value that counts down between updates
+  // and moves only a fifth of the way toward each new estimate.
+  const etaSmooth = new Map<string, { eta: number; at: number }>();
+  const smoothEta = (id: string, raw: number | null | undefined, now: number): number | null => {
+    if (typeof raw !== 'number' || !Number.isFinite(raw)) return etaSmooth.get(id) ? Math.max(0, Math.round(etaSmooth.get(id)!.eta - (now - etaSmooth.get(id)!.at) / 1000)) : null;
+    const prev = etaSmooth.get(id);
+    const counted = prev ? Math.max(0, prev.eta - (now - prev.at) / 1000) : raw;
+    const eta = prev ? counted * 0.8 + raw * 0.2 : raw;
+    etaSmooth.set(id, { eta, at: now });
+    return Math.round(eta);
+  };
   const upsert = (item: DownloadItem): void => {
     const idx = state.items.findIndex((i) => i.id === item.id);
     const prevItem = idx >= 0 ? state.items[idx] : undefined;
@@ -177,6 +188,8 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     const ended = item.state === 'done' || item.state === 'failed' || item.state === 'cancelled';
     const startedAt = prevItem?.startedAt ?? now;
     const finishedAt = ended ? (prevItem?.finishedAt ?? now) : undefined;
+    if (item.state === 'running') item = { ...item, etaSec: smoothEta(item.id, item.etaSec, now) };
+    else etaSmooth.delete(item.id);
     const next = withTitle({ ...item, startedAt, finishedAt, tookMs: finishedAt ? finishedAt - startedAt : undefined });
     remember(next);
     const items = idx >= 0 ? state.items.map((i, n) => (n === idx ? next : i)) : [...state.items, next];

@@ -93,6 +93,21 @@ export function parseProgressLine(line: string): ProgressInfo | null {
   return { percent, speedBps: numOrNull(speedRaw), etaSec: numOrNull(etaRaw) };
 }
 
+const ARIA2_UNITS: Record<string, number> = { B: 1, KiB: 1024, MiB: 1024 ** 2, GiB: 1024 ** 3, TiB: 1024 ** 4 };
+
+/**
+ * aria2c does its own downloading, so yt-dlp prints no progress lines of its own. With --summary-interval=1
+ * aria2 prints `[#gid 400KiB/33MiB(1%) CN:8 DL:1.5MiB ETA:4m51s]` once a second; this reads that.
+ */
+export function parseAria2Line(line: string): ProgressInfo | null {
+  const m = /^\[#\w+ [^(]*\((\d+)%\)(?:.*?DL:(\d+(?:\.\d+)?)([KMGT]?i?B))?(?:.*?ETA:(?:(\d+)h)?(?:(\d+)m)?(?:(\d+)s)?)?/.exec(line.trim());
+  if (!m) return null;
+  const speed = m[2] !== undefined ? Math.round(Number(m[2]) * (ARIA2_UNITS[m[3] ?? 'B'] ?? 1)) : null;
+  const hasEta = m[4] !== undefined || m[5] !== undefined || m[6] !== undefined;
+  const eta = hasEta ? Number(m[4] ?? 0) * 3600 + Number(m[5] ?? 0) * 60 + Number(m[6] ?? 0) : null;
+  return { percent: Number(m[1]), speedBps: speed, etaSec: eta };
+}
+
 export function mapStderr(text: string): EngineErrorCode {
   if (/Unsupported URL/i.test(text)) return 'unsupported';
   if (/Sign in|\bage\b|not available in your country/i.test(text)) return 'blocked';
@@ -204,7 +219,7 @@ export class YtDlpEngine implements Engine {
         '--ffmpeg-location',
         this.opts.ffmpegPath,
         ...(this.opts.aria2cPath && existsSync(this.opts.aria2cPath)
-          ? ['--downloader', this.opts.aria2cPath, '--downloader-args', 'aria2c:-x 8 -s 8 -k 1M']
+          ? ['--downloader', this.opts.aria2cPath, '--downloader-args', 'aria2c:-x 8 -s 8 -k 1M --summary-interval=1']
           : []),
         ...buildArgs(url, preset, staging),
       ];
@@ -359,7 +374,7 @@ export class YtDlpEngine implements Engine {
 
   private onLine(job: Job, line: string): void {
     if (job.cancelled || job.finished) return;
-    const p = parseProgressLine(line.trim());
+    const p = parseProgressLine(line.trim()) ?? parseAria2Line(line);
     if (!p) return;
     this.update(job, { state: 'running', percent: p.percent, speedBps: p.speedBps, etaSec: p.etaSec });
   }

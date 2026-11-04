@@ -232,7 +232,8 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
         for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
         if (YtDlpRuntime.fastDownloads) {
             request.addOption("--downloader", "libaria2c.so")
-            request.addOption("--downloader-args", "aria2c:-x 8 -s 8 -k 1M")
+            // No --downloader-args here: the library adds its own `--external-downloader-args aria2c:--summary-interval=1`
+            // after ours, and yt-dlp keeps only the last one per downloader. aria2's defaults (16 connections) apply.
         }
         request.addCommands(listOf("--")) // the library puts the url after this
         try {
