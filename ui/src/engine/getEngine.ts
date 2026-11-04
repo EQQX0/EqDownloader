@@ -4,13 +4,22 @@ import { FakeEngine } from './fake';
 import type { Engine } from './types';
 
 /** Extra methods only the desktop shell provides. */
+export interface AppUpdater {
+  version(): Promise<string>;
+  /** The newer version number, or null when this build is current. */
+  check(): Promise<{ version: string } | null>;
+  install(): Promise<string>;
+}
+
 export interface DesktopExtras {
   getDefaultFolder(): Promise<string>;
   chooseFolder(): Promise<string | null>;
   revealFile(path: string): Promise<void>;
+  appUpdater: AppUpdater;
 }
 
-type MaybeBridge = Engine & Partial<DesktopExtras>;
+type AppBridge = { appVersion(): Promise<string>; checkAppUpdate(): Promise<{ version: string } | null>; installAppUpdate(): Promise<string> };
+type MaybeBridge = Engine & Partial<Omit<DesktopExtras, 'appUpdater'>> & Partial<AppBridge>;
 
 /** The shell's engine (window.eq) on Electron, the Capacitor plugin engine on Android, else the fake one for browser use and tests. */
 export function getEngine(cap: { isNativePlatform(): boolean } = Capacitor): Engine {
@@ -26,5 +35,8 @@ export function hostFor(engine: Engine): Partial<DesktopExtras> {
   if (typeof e.getDefaultFolder === 'function') out.getDefaultFolder = () => e.getDefaultFolder!();
   if (typeof e.chooseFolder === 'function') out.chooseFolder = () => e.chooseFolder!();
   if (typeof e.revealFile === 'function') out.revealFile = (p) => e.revealFile!(p);
+  if (typeof e.appVersion === 'function' && typeof e.checkAppUpdate === 'function' && typeof e.installAppUpdate === 'function') {
+    out.appUpdater = { version: () => e.appVersion!(), check: () => e.checkAppUpdate!(), install: () => e.installAppUpdate!() };
+  }
   return out;
 }

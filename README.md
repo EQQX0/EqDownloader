@@ -8,7 +8,7 @@ You are responsible for having the right to download what you download.
 
 ## Install
 
-Both files are on the [Releases page](../../releases). The repository is private, so sign in to GitHub first.
+Both files are on the [Releases page](../../releases). No account is needed.
 
 **Windows.** Download `EqDownload.exe` and run it. It is portable: no installer, no admin rights. Windows SmartScreen will warn about an unknown publisher because the exe is not code-signed. Choose "More info", then "Run anyway".
 
@@ -28,6 +28,14 @@ TikTok links save without the TikTok logo: presets skip any format yt-dlp labels
 
 Files go to your Downloads folder on Windows (change it in Settings) and to `Downloads/EqDownload` on Android.
 
+## Updating the app
+
+Settings shows the app version. Press Check for app update to ask GitHub for the newest release. Nothing checks by itself.
+
+**Windows.** If a newer version exists, the button becomes Install. The app downloads `EqDownload.exe`, checks it against the release's `SHA256SUMS.txt`, then restarts into the new version. It only replaces the portable exe it was started from, and refuses a file that fails the checksum.
+
+**Android.** Install opens the new APK's download in your browser. Android then asks you to install it. It only installs over this app when it carries the same signing key.
+
 ## When a download fails
 
 Sites change often, and yt-dlp changes with them. If a link that used to work stops working, open Settings and press Update engine. On Windows the app asks GitHub for the newest yt-dlp release and checks its SHA-256 against the release's published checksum file before using it. On Android the update uses the youtubedl-android library's own updater over HTTPS. It does not check a checksum.
@@ -37,7 +45,7 @@ Some sites need a login, an age check, or a different region. EqDownload shows t
 ## Privacy
 
 - No analytics, ads, crash reporting or accounts.
-- The app contacts the sites you ask for. When you press Update engine, it also contacts `api.github.com`, `github.com` and GitHub's release asset hosts. Nothing else.
+- The app contacts the sites you ask for. When you press Update engine or Check for app update, it also contacts `api.github.com`, `github.com` and GitHub's release asset hosts. Nothing else.
 - The Android app asks for four permissions: internet, foreground service, foreground service data sync, and notifications. A unit test fails the build if the manifest gains another. (The merged APK also carries one app-private permission that Android adds for broadcast receivers; it exposes nothing to other apps.)
 - The Windows window runs with context isolation, no Node access and a Content-Security-Policy that blocks remote scripts.
 - Android turns cleartext HTTP off and upgrades `http://` links to `https://` before they reach yt-dlp. This is partial protection: yt-dlp runs as its own process, so it may still follow a redirect to an `http://` address.

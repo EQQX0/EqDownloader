@@ -8,8 +8,8 @@ android {
         applicationId "app.eqdownload.android"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 5
-        versionName "0.1.5"
+        versionCode 6
+        versionName "0.1.6"
         // arm64 only keeps the APK small (python + ffmpeg ship per ABI).
         ndk { abiFilters 'arm64-v8a' }
         aaptOptions {
@@ -58,6 +58,7 @@ dependencies {
     // Already a dependency of Capacitor; MainActivity asks it whether the web view can run the bridge.
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     testImplementation "junit:junit:$junitVersion"
+    testImplementation "org.json:json:20240303"
 }
 
 apply from: 'capacitor.build.gradle'

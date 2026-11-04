@@ -13,7 +13,7 @@ const ALLOWED_HOSTS = new Set([
 const MAX_HOPS = 5;
 export const MAX_EXE_BYTES = 200 * 1024 * 1024;
 export const MAX_SUMS_BYTES = 1024 * 1024;
-const MAX_JSON_BYTES = 8 * 1024 * 1024;
+export const MAX_JSON_BYTES = 8 * 1024 * 1024;
 const EXE_ASSET = 'yt-dlp.exe';
 const SUMS_ASSET = 'SHA2-256SUMS';
 
@@ -86,27 +86,16 @@ async function readCapped(res: Response, max: number): Promise<Buffer> {
   return Buffer.concat(chunks);
 }
 
-export interface UpdateOptions {
-  userDataDir: string;
-  fetch?: typeof fetch;
-  /** Called with the host of every request actually made (for diagnostics). */
-  onHost?: (host: string) => void;
-  /** Override the yt-dlp.exe size cap (tests). */
-  maxExeBytes?: number;
-}
-
 /**
- * Downloads the latest yt-dlp.exe into `userDataDir`, verified against the release's SHA2-256SUMS.
- * Only runs when called; never contacts hosts outside GitHub. Returns the release tag.
+ * Returns a GET that only talks to the GitHub hosts and follows redirects by hand, so every Location is
+ * checked BEFORE it is contacted. The body is read with a size cap.
  */
-export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
-  const f = opts.fetch ?? fetch;
-  // Redirects are followed by hand so every Location is checked BEFORE it is contacted.
-  const get = async (start: string, maxBytes: number): Promise<Buffer> => {
+export function createGetter(f: typeof fetch, onHost?: (host: string) => void) {
+  return async (start: string, maxBytes: number): Promise<Buffer> => {
     let url = start;
     for (let hop = 0; ; hop++) {
       assertAllowedUrl(url);
-      opts.onHost?.(new URL(url).hostname);
+      onHost?.(new URL(url).hostname);
       let res: Response;
       try {
         res = await f(url, { redirect: 'manual', headers: { 'User-Agent': 'EqDownload', Accept: 'application/octet-stream, application/vnd.github+json' } });
@@ -129,6 +118,23 @@ export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
       return readCapped(res, maxBytes);
     }
   };
+}
+
+export interface UpdateOptions {
+  userDataDir: string;
+  fetch?: typeof fetch;
+  /** Called with the host of every request actually made (for diagnostics). */
+  onHost?: (host: string) => void;
+  /** Override the yt-dlp.exe size cap (tests). */
+  maxExeBytes?: number;
+}
+
+/**
+ * Downloads the latest yt-dlp.exe into `userDataDir`, verified against the release's SHA2-256SUMS.
+ * Only runs when called; never contacts hosts outside GitHub. Returns the release tag.
+ */
+export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
+  const get = createGetter(opts.fetch ?? fetch, opts.onHost);
 
   const release = JSON.parse((await get(RELEASE_API, MAX_JSON_BYTES)).toString('utf8')) as { tag_name?: string; assets?: ReleaseAsset[] };
   const assets = Array.isArray(release.assets) ? release.assets : [];

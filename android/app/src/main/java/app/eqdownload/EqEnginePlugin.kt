@@ -1,7 +1,9 @@
 package app.eqdownload
 
 import android.Manifest
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
 import android.os.Build
 import androidx.core.content.ContextCompat
 import com.getcapacitor.JSArray
@@ -132,6 +134,48 @@ class EqEnginePlugin : Plugin() {
         val items = JSArray()
         for (i in core.list()) items.put(i.toJs())
         call.resolve(JSObject().put("items", items))
+    }
+
+    @PluginMethod
+    fun appVersion(call: PluginCall) {
+        try {
+            val v = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "unknown"
+            call.resolve(JSObject().put("version", v))
+        } catch (e: Throwable) {
+            reject(call, e)
+        }
+    }
+
+    /** Runs only when the user presses Check for app update. Resolves with `version` null when the app is current. */
+    @PluginMethod
+    fun checkAppUpdate(call: PluginCall) {
+        pool.execute {
+            try {
+                val current = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
+                val latest = AppUpdate.fetchLatest()
+                call.resolve(JSObject().put("version", if (AppUpdate.isNewer(latest.version, current)) latest.version else null))
+            } catch (e: Throwable) {
+                reject(call, e)
+            }
+        }
+    }
+
+    /**
+     * Opens the newest APK's download in the browser. The link is read from GitHub again here, never taken from
+     * JavaScript. Android installs it over this app only when it carries the same signing key.
+     */
+    @PluginMethod
+    fun installAppUpdate(call: PluginCall) {
+        pool.execute {
+            try {
+                val latest = AppUpdate.fetchLatest()
+                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(latest.apkUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(intent)
+                call.resolve(JSObject().put("version", latest.version))
+            } catch (e: Throwable) {
+                reject(call, e)
+            }
+        }
     }
 
     /** Runs only when the user presses Update engine. Nothing calls it automatically. */

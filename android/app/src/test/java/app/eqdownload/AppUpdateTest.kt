@@ -1,0 +1,44 @@
+package app.eqdownload
+
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
+import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
+import org.junit.Test
+
+class AppUpdateTest {
+    private val base = "https://github.com/EQQX0/EqDownloader/releases/download/v0.1.6/"
+
+    @Test fun comparesVersions() {
+        assertTrue(AppUpdate.isNewer("v0.1.6", "0.1.5"))
+        assertTrue(AppUpdate.isNewer("0.2.0", "0.1.9"))
+        assertFalse(AppUpdate.isNewer("v0.1.5", "0.1.5"))
+        assertFalse(AppUpdate.isNewer("v0.1.4", "0.1.5"))
+        assertFalse(AppUpdate.isNewer("latest", "0.1.5"))
+    }
+
+    @Test fun parsesPlainVersionsOnly() {
+        assertEquals(listOf(0, 1, 5), AppUpdate.parseVersion("v0.1.5"))
+        assertNull(AppUpdate.parseVersion("0.1"))
+        assertNull(AppUpdate.parseVersion("1.2.3-beta"))
+    }
+
+    @Test fun readsTheApkLink() {
+        val json = """{"tag_name":"v0.1.6","assets":[
+            {"name":"EqDownload.exe","browser_download_url":"${base}EqDownload.exe"},
+            {"name":"EqDownload.apk","browser_download_url":"${base}EqDownload.apk"}]}"""
+        val r = AppUpdate.parseRelease(json)
+        assertEquals("0.1.6", r.version)
+        assertEquals("${base}EqDownload.apk", r.apkUrl)
+    }
+
+    @Test fun refusesAnApkLinkOnAnotherHost() {
+        val json = """{"tag_name":"v0.1.6","assets":[{"name":"EqDownload.apk","browser_download_url":"https://evil.example/EqDownload.apk"}]}"""
+        assertThrows(IllegalArgumentException::class.java) { AppUpdate.parseRelease(json) }
+    }
+
+    @Test fun refusesAReleaseWithoutAnApk() {
+        assertThrows(IllegalStateException::class.java) { AppUpdate.parseRelease("""{"tag_name":"v0.1.6","assets":[]}""") }
+    }
+}

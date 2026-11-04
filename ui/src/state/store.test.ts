@@ -310,3 +310,72 @@ describe('races and guards', () => {
     expect(store.state.error?.offerUpdate).toBe(true);
   });
 });
+
+describe('app update', () => {
+  const updater = (found: { version: string } | null, installError?: EngineError) => ({
+    version: async () => '0.1.5',
+    check: vi.fn(async () => found),
+    install: vi.fn(async () => {
+      if (installError) throw installError;
+      return found?.version ?? '';
+    }),
+  });
+
+  it('has no app update without an updater', async () => {
+    const store = createStore(new TestEngine(), { storage: null });
+    await store.ready;
+    expect(store.canUpdateApp).toBe(false);
+  });
+
+  it('reads the version, checks only on request, and reports a newer one', async () => {
+    const u = updater({ version: '0.1.6' });
+    const store = createStore(new TestEngine(), { storage: null, appUpdater: u });
+    await store.ready;
+    expect(store.canUpdateApp).toBe(true);
+    expect(store.state.settings.appVersion).toBe('0.1.5');
+    expect(u.check).not.toHaveBeenCalled();
+    await store.checkAppUpdate();
+    expect(store.state.appUpdate).toEqual({ status: 'available', version: '0.1.6' });
+  });
+
+  it('says current when nothing is newer', async () => {
+    const store = createStore(new TestEngine(), { storage: null, appUpdater: updater(null) });
+    await store.ready;
+    await store.checkAppUpdate();
+    expect(store.state.appUpdate.status).toBe('current');
+  });
+
+  it('installs only after a check found an update', async () => {
+    const u = updater({ version: '0.1.6' });
+    const store = createStore(new TestEngine(), { storage: null, appUpdater: u });
+    await store.ready;
+    await store.installAppUpdate();
+    expect(u.install).not.toHaveBeenCalled();
+    await store.checkAppUpdate();
+    await store.installAppUpdate();
+    expect(u.install).toHaveBeenCalledTimes(1);
+    expect(store.state.appUpdate.status).toBe('installed');
+  });
+
+  it('shows an error and stays available when the install fails', async () => {
+    const store = createStore(new TestEngine(), {
+      storage: null,
+      appUpdater: updater({ version: '0.1.6' }, { code: 'unknown', message: 'Checksum mismatch' }),
+    });
+    await store.ready;
+    await store.checkAppUpdate();
+    await store.installAppUpdate();
+    expect(store.state.appUpdate.status).toBe('available');
+    expect(store.state.error?.message).toBe('Checksum mismatch');
+  });
+
+  it('returns to idle with an error when the check fails', async () => {
+    const u = updater(null);
+    u.check.mockRejectedValueOnce({ code: 'network', message: 'x' });
+    const store = createStore(new TestEngine(), { storage: null, appUpdater: u });
+    await store.ready;
+    await store.checkAppUpdate();
+    expect(store.state.appUpdate.status).toBe('idle');
+    expect(store.state.error?.code).toBe('network');
+  });
+});

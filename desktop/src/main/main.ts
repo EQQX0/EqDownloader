@@ -6,6 +6,7 @@ import type { DownloadItem, EngineError, Preset } from '@eq/ui/engine';
 import { checkDestination, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope } from './ipc';
 import { resolveBinaries } from './paths';
 import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from './security';
+import { checkAppUpdate, installAppUpdate } from './appupdate';
 import { updateYtDlp } from './update';
 import { YtDlpEngine } from './ytdlp';
 
@@ -68,6 +69,13 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   handle('eq:cancel', (id) => engine.cancel(str(id, 'id')));
   handle('eq:list', () => engine.list());
   handle('eq:updateEngine', () => engine.updateEngine());
+  handle('eq:appVersion', () => app.getVersion());
+  handle('eq:checkAppUpdate', () => checkAppUpdate(app.getVersion()));
+  handle('eq:installAppUpdate', async () => {
+    const v = await installAppUpdate({ current: app.getVersion(), target: process.env.PORTABLE_EXECUTABLE_FILE, tmpDir: app.getPath('temp') });
+    setTimeout(() => app.quit(), 800);
+    return v;
+  });
   handle('eq:getDefaultFolder', () => app.getPath('downloads'));
   handle('eq:chooseFolder', async () => {
     const win = getWindow();

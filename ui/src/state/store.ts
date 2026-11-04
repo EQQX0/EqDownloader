@@ -1,4 +1,5 @@
 import type { DownloadItem, Engine, Preset, ProbeResult } from '../engine';
+import type { AppUpdater } from '../engine/getEngine';
 import { extractUrl } from '../lib/url';
 import { asEngineError, describeError, NO_LINK, type UiError } from './errors';
 
@@ -9,7 +10,11 @@ export interface Settings {
   destination: string;
   preset: Preset;
   engineVersion: string | null;
+  appVersion: string | null;
 }
+
+/** Progress of the app's own update; only used when the shell can update itself. */
+export type AppUpdateState = 'idle' | 'checking' | 'current' | 'available' | 'installing' | 'installed';
 
 export interface State {
   screen: Screen;
@@ -18,6 +23,7 @@ export interface State {
   items: DownloadItem[];
   error: UiError | null;
   settings: Settings;
+  appUpdate: { status: AppUpdateState; version: string | null };
 }
 
 /** Platform extras. Everything is optional so the browser and fake engine work with none. */
@@ -25,6 +31,7 @@ export interface Host {
   getDefaultFolder?: () => Promise<string>;
   chooseFolder?: () => Promise<string | null>;
   revealFile?: (path: string) => Promise<void>;
+  appUpdater?: AppUpdater;
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
 }
 
@@ -33,11 +40,14 @@ export interface Store {
   readonly ready: Promise<void>;
   readonly canChooseFolder: boolean;
   readonly canReveal: boolean;
+  readonly canUpdateApp: boolean;
   submitLink(text: string): Promise<void>;
   startDownload(preset: Preset): Promise<void>;
   cancel(id: string): Promise<void>;
   retry(id: string): Promise<void>;
   updateEngine(): Promise<void>;
+  checkAppUpdate(): Promise<void>;
+  installAppUpdate(): Promise<void>;
   chooseFolder(): Promise<void>;
   revealFile(path: string): Promise<void>;
   setPreset(preset: Preset): void;
@@ -84,7 +94,9 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       destination: read(KEY_DEST) ?? 'Downloads',
       preset: PRESET_LIST.includes(savedPreset as Preset) ? (savedPreset as Preset) : 'best',
       engineVersion: null,
+      appVersion: null,
     },
+    appUpdate: { status: 'idle', version: null },
   };
 
   const listeners = new Set<() => void>();
@@ -124,6 +136,13 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         if (dest) state.settings.destination = dest;
       } catch {
         // Keep the placeholder destination.
+      }
+    }
+    if (host.appUpdater) {
+      try {
+        state.settings.appVersion = await host.appUpdater.version();
+      } catch {
+        // The row then shows no version.
       }
     }
     try {
@@ -168,6 +187,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     ready,
     canChooseFolder: typeof host.chooseFolder === 'function',
     canReveal: typeof host.revealFile === 'function',
+    canUpdateApp: !!host.appUpdater,
 
     async submitLink(text) {
       const url = extractUrl(text);
@@ -222,6 +242,31 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         set({ settings: { ...state.settings, engineVersion: v }, error: state.error?.offerUpdate ? null : state.error });
       } catch (e) {
         set({ error: describeError(asEngineError(e), state.settings.destination) });
+      }
+    },
+
+    async checkAppUpdate() {
+      const u = host.appUpdater;
+      if (!u || state.appUpdate.status === 'checking' || state.appUpdate.status === 'installing') return;
+      set({ appUpdate: { status: 'checking', version: null } });
+      try {
+        const found = await u.check();
+        set({ appUpdate: found ? { status: 'available', version: found.version } : { status: 'current', version: null } });
+      } catch (e) {
+        set({ appUpdate: { status: 'idle', version: null }, error: describeError(asEngineError(e), state.settings.destination) });
+      }
+    },
+
+    async installAppUpdate() {
+      const u = host.appUpdater;
+      if (!u || state.appUpdate.status !== 'available') return;
+      const version = state.appUpdate.version;
+      set({ appUpdate: { status: 'installing', version } });
+      try {
+        await u.install();
+        set({ appUpdate: { status: 'installed', version } });
+      } catch (e) {
+        set({ appUpdate: { status: 'available', version }, error: describeError(asEngineError(e), state.settings.destination) });
       }
     },
 

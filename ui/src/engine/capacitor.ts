@@ -8,6 +8,9 @@ export interface EqEnginePlugin {
   cancel(opts: { id: string }): Promise<void>;
   list(): Promise<{ items: DownloadItem[] }>;
   updateEngine(): Promise<{ version: string }>;
+  appVersion(): Promise<{ version: string }>;
+  checkAppUpdate(): Promise<{ version: string | null }>;
+  installAppUpdate(): Promise<{ version: string }>;
   addListener(event: 'progress', cb: (item: DownloadItem) => void): Promise<PluginListenerHandle>;
   addListener(event: 'share', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
 }
@@ -77,6 +80,19 @@ export class CapacitorEngine implements Engine {
 
   async updateEngine(): Promise<string> {
     return (await call(this.plugin.updateEngine())).version;
+  }
+
+  async appVersion(): Promise<string> {
+    return (await call(this.plugin.appVersion())).version;
+  }
+
+  async checkAppUpdate(): Promise<{ version: string } | null> {
+    const v = (await call(this.plugin.checkAppUpdate())).version;
+    return v ? { version: v } : null;
+  }
+
+  async installAppUpdate(): Promise<string> {
+    return (await call(this.plugin.installAppUpdate())).version;
   }
 
   onProgress(handler: (item: DownloadItem) => void): () => void {

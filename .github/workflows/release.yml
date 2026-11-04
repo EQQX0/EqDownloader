@@ -22,6 +22,16 @@ jobs:
         with:
           node-version: 22
           cache: npm
+      - name: Check the tag matches the app versions
+        shell: bash
+        run: |
+          want="${GITHUB_REF_NAME#v}"
+          desk=$(node -p "require('./desktop/package.json').version")
+          andr=$(grep -oP '(?<=versionName ")[^"]+' android/app/build.gradle)
+          if [ "$want" != "$desk" ] || [ "$want" != "$andr" ]; then
+            echo "Tag $GITHUB_REF_NAME, desktop $desk, android $andr: they must all match (the in-app updater compares them)." >&2
+            exit 1
+          fi
       - name: Install dependencies
         run: npm ci
       - name: Unit tests
