@@ -30,7 +30,6 @@ a { color: inherit; }
 .bar { padding: calc(env(safe-area-inset-top) + 0.75rem) var(--margin) 0; }
 .bar nav { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem 1.5rem; font-size: var(--small); font-weight: 500; }
 .bar a { min-height: var(--target); display: inline-flex; align-items: center; text-decoration: none; }
-.hero-logo { display: block; width: clamp(7rem, 12vw, 10rem); height: auto; aspect-ratio: 1; border-radius: 22%; margin-bottom: clamp(1rem, 2.5vw, 2rem); box-shadow: 0 0 0 3px var(--muted); }
 .bar .logo { margin-right: auto; }
 .bar .logo img { display: block; width: 3.5rem; height: 3.5rem; border-radius: 22%; }
 .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
@@ -40,7 +39,13 @@ a { color: inherit; }
 
 /* The monument. */
 .monument { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.045em; line-height: 0.9; font-size: var(--monument); white-space: nowrap; }
-.hero { padding: clamp(2.5rem, 8vh, 6rem) var(--margin) clamp(3rem, 9vh, 7rem); }
+.hero { position: relative; isolation: isolate; overflow: clip; padding: clamp(2.5rem, 8vh, 6rem) var(--margin) clamp(3rem, 9vh, 7rem); }
+/* The Eq mark as a large, faint backdrop: part of the theme, not a picture on top of it. */
+.hero::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none;
+  top: 50%; right: -6vw; width: min(78vw, 52rem); aspect-ratio: 1; transform: translateY(-46%);
+  background: url(mark.png) center / contain no-repeat; opacity: 0.16;
+}
 .monument-text { display: inline-block; transform-origin: left bottom; }
 
 /* The equals sign: the upper bar is the original, the lower one the copy. They fill until equal. */
@@ -134,7 +139,11 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 .hash code { font: inherit; font-variant-numeric: tabular-nums; word-break: break-all; color: var(--muted); }
 
 /* Close: an invitation over the cropped name, in the inverse colours. */
-.close { background: var(--inverse); color: var(--inverse-ink); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(3rem, 8vh, 6rem) var(--margin) 0; overflow: hidden; }
+.close { position: relative; isolation: isolate; background: var(--inverse); color: var(--inverse-ink); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(3rem, 8vh, 6rem) var(--margin) 0; overflow: hidden; }
+.close::before {
+  content: ''; position: absolute; z-index: -1; pointer-events: none; left: -8vw; bottom: 12%; width: min(60vw, 40rem); aspect-ratio: 1;
+  background: var(--inverse-ink); opacity: 0.1; -webkit-mask: url(mark.png) center / contain no-repeat; mask: url(mark.png) center / contain no-repeat;
+}
 .close a:focus-visible { outline-color: var(--inverse-ink); }
 .linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
 .linklike[hidden] { display: none; }

@@ -20,6 +20,10 @@ function variant(side, cx = 205, cy = 213) {
   const open = head.replace(/<svg[^>]*>/, `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">`);
   return `${open}${GROUND}</defs><rect x="-2000" y="-2000" width="4000" height="4000" fill="url(#full)"/>${glyph}</svg>`;
 }
+function markOnly() {
+  const open = head.replace(/<svg[^>]*>/, '<svg viewBox="82 74 246 270" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">');
+  return `${open}</defs>${glyph}</svg>`;
+}
 const VARIANTS = { 'icon-glyph': variant(278), 'icon-adaptive': variant(330) };
 
 const browser = await chromium.launch();
@@ -32,6 +36,16 @@ try {
     await page.waitForTimeout(300);
     writeFileSync(join(root, 'design', `${name}.png`), await page.screenshot({ type: 'png' }));
   }
+  // The transparent mark used as a watermark behind the site and the app.
+  const mark = markOnly();
+  writeFileSync(join(root, 'design', 'icon-mark.svg'), mark);
+  await page.setContent(`<!doctype html><body style="margin:0;background:transparent">${mark}</body>`);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(300);
+  const markPng = await page.screenshot({ type: 'png', omitBackground: true });
+  writeFileSync(join(root, 'design', 'icon-mark.png'), markPng);
+  writeFileSync(join(root, 'site', 'mark.png'), markPng);
+  writeFileSync(join(root, 'ui', 'public', 'mark.png'), markPng);
   // Small sizes, rendered from the 1024 master by the browser's own scaler.
   const sizes = [
     ['icon-glyph', 'ui/public/logo.png', 256], ['icon-glyph', 'site/logo.png', 192], ['icon-glyph', 'site/icon-192.png', 192],

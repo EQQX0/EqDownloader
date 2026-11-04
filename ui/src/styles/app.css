@@ -2,6 +2,11 @@
    the lower one filling until it equals the upper. Tokens only (tokens.css). */
 
 /* ---------- frame ---------- */
+body::before {
+  content: ''; position: fixed; z-index: -1; pointer-events: none; right: -12vmin; bottom: -8vmin; width: 82vmin; aspect-ratio: 1;
+  background: url(/mark.png) center / contain no-repeat; opacity: 0.07;
+}
+
 #app {
   display: grid;
   grid-template-rows: auto auto 1fr auto;
