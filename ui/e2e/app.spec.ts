@@ -155,3 +155,13 @@ test('desktop bridge supplies the default destination and Show in folder', async
   await expect(tid(page, 'destination')).toHaveText('C:/Users/me/Downloads');
   await expect(tid(page, 'choose-folder')).toBeVisible();
 });
+
+test('the Paste button reads the clipboard and checks the link', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(navigator, 'clipboard', { value: { readText: async () => 'https://example.test/v' }, configurable: true });
+  });
+  await page.goto('/');
+  await tid(page, 'paste-button').click();
+  await expect(tid(page, 'probe-title')).toHaveText('Fake video');
+  await expect(tid(page, 'link-input')).toHaveValue('https://example.test/v');
+});

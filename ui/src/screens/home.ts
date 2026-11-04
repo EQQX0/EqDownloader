@@ -14,10 +14,21 @@ export const createHome: ScreenFactory = (store) => {
     'aria-describedby': 'link-hint error-text',
   });
   const submit = h('button', { type: 'submit', testid: 'link-submit', class: 'button check' }, 'Check link');
+  const pasteBtn = h('button', { type: 'button', testid: 'paste-button', class: 'button paste' }, 'Paste');
   const form = h(
     'form', { novalidate: true, class: 'link-form' },
-    h('label', { for: 'link', class: 'field-label' }, 'Link'), input, submit,
+    h('label', { for: 'link', class: 'field-label' }, 'Link'), input, h('div', { class: 'link-actions' }, pasteBtn, submit),
   );
+  // Paste always checks the link too. If the clipboard cannot be read, the field is focused for a manual paste.
+  pasteBtn.addEventListener('click', async () => {
+    const text = (await store.readClipboard()).trim();
+    if (!text) {
+      input.focus();
+      return;
+    }
+    input.value = text;
+    void store.submitLink(text);
+  });
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void store.submitLink(input.value);

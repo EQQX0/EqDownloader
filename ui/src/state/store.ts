@@ -49,6 +49,8 @@ export interface Store {
   readonly canUpdateApp: boolean;
   readonly canOpenSupport: boolean;
   openSupport(): Promise<void>;
+  /** The clipboard text, read by the shell when it can (Android) or by the browser; empty when it cannot be read. */
+  readClipboard(): Promise<string>;
   /** Everything traceable about failures: the app's own notes plus the shell's log when there is one. */
   debugLog(): Promise<string>;
   clearDebugLog(): Promise<void>;
@@ -325,6 +327,15 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     canReveal: typeof host.revealFile === 'function',
     canUpdateApp: !!host.appUpdater,
     canOpenSupport: typeof host.openSupport === 'function',
+    async readClipboard() {
+      try {
+        const rc = (engine as Engine & { readClipboard?(): Promise<string> }).readClipboard;
+        if (typeof rc === 'function') return await rc.call(engine);
+        return (await navigator.clipboard?.readText?.()) ?? '';
+      } catch {
+        return '';
+      }
+    },
     async debugLog() {
       let native = '';
       try {

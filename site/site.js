@@ -230,6 +230,9 @@
       go.disabled = false;
     }
   });
+  // Pasting into the field also runs Find, once the pasted text has landed.
+  form.elements.url.addEventListener('paste', () => setTimeout(() => { if (form.elements.url.value.trim()) form.requestSubmit(); }, 0));
+
   // Paste button: reads the clipboard into the field. Browsers ask permission the first time; if they refuse, the field is focused.
   const pasteBtn = document.getElementById('paste');
   if (pasteBtn && navigator.clipboard && navigator.clipboard.readText) {
@@ -238,7 +241,7 @@
       const field = form.elements.url;
       try {
         const text = (await navigator.clipboard.readText()).trim();
-        if (text) { field.value = text; }
+        if (text) { field.value = text; form.requestSubmit(); return; }
       } catch { /* permission refused: leave the field for a manual paste */ }
       field.focus();
     });
