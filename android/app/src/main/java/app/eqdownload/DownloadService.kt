@@ -25,7 +25,8 @@ import kotlin.math.roundToInt
 class DownloadService : Service() {
     private val workers = Executors.newFixedThreadPool(2)
     private val main = Handler(Looper.getMainLooper())
-    private var pending = 0 // main thread only
+    private val idle = IdlePolicy() // main thread only
+    private val core by lazy { DownloadCenter.install(applicationContext) }
     private var lastNotifyAt = 0L
 
     private val listener: (Item) -> Unit = { item ->
@@ -38,10 +39,10 @@ class DownloadService : Service() {
     override fun onCreate() {
         super.onCreate()
         createChannels()
-        DownloadCenter.addListener(listener)
+        core.addListener(listener)
         // Stale staging from a crashed run (older than ten minutes) goes now; running downloads are spared.
         workers.execute {
-            runCatching { StagingSweeper.sweep(DownloadCenter.stagingRoot(this), active = DownloadCenter.activeStagingNames()) }
+            runCatching { StagingSweeper.sweep(core.stagingRoot(), active = core.activeStagingNames()) }
         }
     }
 
@@ -49,49 +50,56 @@ class DownloadService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val id = intent.getStringExtra(EXTRA_ID)
-                // Must happen within seconds of startForegroundService.
+                // Every start must call startForeground within seconds, even one that turns out to have no work.
                 ServiceCompat.startForeground(
                     this, NOTIFICATION_ID, progressNotification(), ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC,
                 )
+                idle.started(startId, withWork = id != null)
                 if (id == null) {
                     stopIfIdle()
                 } else {
-                    pending++
                     workers.execute {
                         try {
-                            DownloadCenter.run(applicationContext, id)
+                            core.run(id)
                         } finally {
-                            main.post { pending--; stopIfIdle() }
+                            main.post {
+                                idle.finished()
+                                stopIfIdle()
+                            }
                         }
                     }
                 }
             }
             ACTION_CANCEL -> {
-                DownloadCenter.cancelAll()
+                idle.started(startId, withWork = false)
+                core.cancelAll()
                 stopIfIdle()
             }
-            else -> stopIfIdle()
+            else -> {
+                idle.started(startId, withWork = false)
+                stopIfIdle()
+            }
         }
         return START_NOT_STICKY
     }
 
     /** Android 15 caps dataSync services; stop cleanly instead of being killed. */
     override fun onTimeout(startId: Int, fgsType: Int) {
-        DownloadCenter.cancelAll()
+        core.cancelAll()
         stopSelf()
     }
 
     override fun onDestroy() {
-        DownloadCenter.removeListener(listener)
+        core.removeListener(listener)
         workers.shutdownNow()
         super.onDestroy()
     }
 
+    /** Stops only if nothing is running and only up to the newest start seen, so a queued newer start survives. */
     private fun stopIfIdle() {
-        if (pending <= 0) {
-            ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
-            stopSelf()
-        }
+        val id = idle.stopId() ?: return
+        ServiceCompat.stopForeground(this, ServiceCompat.STOP_FOREGROUND_REMOVE)
+        stopSelf(id)
     }
 
     private fun createChannels() {
@@ -110,7 +118,7 @@ class DownloadService : Service() {
     )
 
     private fun progressNotification(): Notification {
-        val active = DownloadCenter.list().filter { it.active }
+        val active = core.list().filter { it.active }
         val percent = if (active.size == 1) active[0].percent.roundToInt() else 0
         val text = when {
             active.isEmpty() -> getString(R.string.notification_starting)
@@ -132,7 +140,7 @@ class DownloadService : Service() {
             .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .setForegroundServiceBehavior(NotificationCompat.FOREGROUND_SERVICE_IMMEDIATE)
             .setContentIntent(openApp())
-            .addAction(0, getString(R.string.action_cancel), cancel)
+            .addAction(0, getString(if (active.size > 1) R.string.action_cancel_all else R.string.action_cancel), cancel)
             .build()
     }
 
@@ -140,7 +148,7 @@ class DownloadService : Service() {
         val now = System.currentTimeMillis()
         if (!force && now - lastNotifyAt < 700) return
         lastNotifyAt = now
-        if (DownloadCenter.activeCount() == 0) return
+        if (core.activeCount() == 0) return
         // Without the notification permission this is a quiet no-op; the service keeps running.
         if (NotificationManagerCompat.from(this).areNotificationsEnabled()) {
             @Suppress("MissingPermission")

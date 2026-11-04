@@ -55,7 +55,14 @@ dependencies {
     // yt-dlp for Android (maintained fork of yausername/youtubedl-android), pinned.
     implementation "io.github.junkfood02.youtubedl-android:library:$youtubedlAndroidVersion"
     implementation "io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroidVersion"
+    // Already a dependency of Capacitor; MainActivity asks it whether the web view can run the bridge.
+    implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     testImplementation "junit:junit:$junitVersion"
 }
 
 apply from: 'capacitor.build.gradle'
+
+// ManifestTest reads the merged manifest, so it has to exist before the unit tests run.
+tasks.configureEach { t ->
+    if (t.name == 'testDebugUnitTest') t.dependsOn('processDebugManifest')
+}

@@ -27,18 +27,19 @@ import org.json.JSONObject
     permissions = [Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "notifications")],
 )
 class EqEnginePlugin : Plugin() {
+    private val core: DownloadCore get() = DownloadCenter.install(context)
     private val pool = Executors.newCachedThreadPool()
     private var askedForNotifications = false
     private val progressListener: (Item) -> Unit = { notifyListeners("progress", it.toJs()) }
 
     override fun load() {
-        DownloadCenter.addListener(progressListener)
+        core.addListener(progressListener)
         // Unpack python and ffmpeg ahead of the first download.
         pool.execute { runCatching { YtDlpRuntime.ensure(context) } }
     }
 
     override fun handleOnDestroy() {
-        DownloadCenter.removeListener(progressListener)
+        core.removeListener(progressListener)
         super.handleOnDestroy()
     }
 
@@ -107,11 +108,11 @@ class EqEnginePlugin : Plugin() {
 
     private fun begin(call: PluginCall) {
         try {
-            val item = DownloadCenter.enqueue(context, call.getString("url"), call.getString("preset"))
+            val item = core.enqueue(call.getString("url"), call.getString("preset"))
             try {
                 DownloadService.start(context, item.id)
             } catch (e: Exception) {
-                DownloadCenter.fail(item.id, EngineException("unknown", "Android would not start the download service."))
+                core.fail(item.id, EngineException("unknown", "Android would not start the download service."))
             }
             call.resolve(JSObject().put("id", item.id))
         } catch (e: Throwable) {
@@ -122,14 +123,14 @@ class EqEnginePlugin : Plugin() {
     @PluginMethod
     fun cancel(call: PluginCall) {
         val id = call.getString("id")
-        if (id != null) DownloadCenter.cancel(id)
+        if (id != null) core.cancel(id)
         call.resolve()
     }
 
     @PluginMethod
     fun list(call: PluginCall) {
         val items = JSArray()
-        for (i in DownloadCenter.list()) items.put(i.toJs())
+        for (i in core.list()) items.put(i.toJs())
         call.resolve(JSObject().put("items", items))
     }
 

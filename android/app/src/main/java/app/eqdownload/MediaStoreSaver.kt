@@ -61,8 +61,16 @@ object MediaStoreSaver {
         } finally {
             synchronized(lock) { reserved -= name }
         }
-        return Saved(uri, name)
+        // MediaStore may rename on a conflict it saw and we did not; report the name the file really has.
+        return Saved(uri, actualName(resolver, uri) ?: name)
     }
+
+    private fun actualName(resolver: ContentResolver, uri: Uri): String? =
+        runCatching {
+            resolver.query(uri, arrayOf(MediaStore.MediaColumns.DISPLAY_NAME), null, null, null)?.use {
+                if (it.moveToFirst()) it.getString(0)?.takeIf { n -> n.isNotEmpty() } else null
+            }
+        }.getOrNull()
 
     private fun existsInStore(resolver: ContentResolver, collection: Uri, name: String): Boolean {
         val projection = arrayOf(MediaStore.MediaColumns._ID)

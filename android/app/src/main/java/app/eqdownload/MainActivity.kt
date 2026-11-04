@@ -2,12 +2,19 @@ package app.eqdownload
 
 import android.content.Intent
 import android.os.Bundle
+import android.util.Log
+import androidx.webkit.WebViewFeature
 import com.getcapacitor.BridgeActivity
 
 class MainActivity : BridgeActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         registerPlugin(EqEnginePlugin::class.java)
         super.onCreate(savedInstanceState)
+        // Capacitor needs DOCUMENT_START_SCRIPT to inject its bridge without breaking the strict CSP. The web layer
+        // shows an update notice when the bridge is missing; this line only leaves a local log (nothing is sent anywhere).
+        if (!WebViewFeature.isFeatureSupported(WebViewFeature.DOCUMENT_START_SCRIPT)) {
+            Log.w("EqDownload", "This WebView lacks DOCUMENT_START_SCRIPT; the app needs an updated Android System WebView.")
+        }
         // A recreated activity (savedInstanceState != null) must not replay an old share.
         if (savedInstanceState == null) forwardShare(intent)
     }

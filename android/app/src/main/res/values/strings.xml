@@ -12,4 +12,5 @@
     <string name="notification_done">Saved to Downloads/EqDownload: %1$s</string>
     <string name="notification_failed">A download failed. Open the app for details.</string>
     <string name="action_cancel">Cancel</string>
+    <string name="action_cancel_all">Cancel all</string>
 </resources>

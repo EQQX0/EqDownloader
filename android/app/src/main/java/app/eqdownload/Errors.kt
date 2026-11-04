@@ -42,7 +42,11 @@ object ErrorMapper {
     }
 }
 
-/** Every URL from JavaScript is untrusted. Only plain http(s) links with a host get through. */
+/**
+ * Every URL from JavaScript is untrusted. Only http(s) links with a host get through, and http is upgraded to https,
+ * so probe, start and the yt-dlp arguments only ever see https. (Partial: yt-dlp may still follow a redirect or a
+ * manifest to http://.)
+ */
 object UrlGuard {
     private const val MAX_LENGTH = 4096
 
@@ -56,6 +60,6 @@ object UrlGuard {
                 false
             }
         if (!ok) throw EngineException("unsupported", "Not a supported link")
-        return url
+        return if (url.startsWith("http://", ignoreCase = true)) "https://" + url.substring(7) else url
     }
 }

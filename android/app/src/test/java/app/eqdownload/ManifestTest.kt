@@ -4,7 +4,6 @@ import java.io.File
 import javax.xml.parsers.DocumentBuilderFactory
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
-import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.w3c.dom.Document
 import org.w3c.dom.Element
@@ -93,9 +92,9 @@ class ManifestTest {
     @Test
     fun mergedManifestAddsNothingUnexpected() {
         val dir = System.getProperty("eq.mergedManifest")
-        assumeTrue("no build dir given", dir != null)
-        val merged = File(dir, "intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml")
-        assumeTrue("merged manifest not generated yet", merged.exists())
+        assertTrue("eq.mergedManifest not set by Gradle", dir != null)
+        val merged = File(dir!!, "intermediates/merged_manifests/debug/processDebugManifest/AndroidManifest.xml")
+        assertTrue("merged manifest missing: ${merged.absolutePath}", merged.exists())
         val doc = parse(merged)
         // androidx.core adds this self-defined, signature-level permission for its non-exported receiver helper.
         val allowed = source.permissions() + "app.eqdownload.android.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION"

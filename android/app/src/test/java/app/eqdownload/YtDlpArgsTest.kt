@@ -8,9 +8,10 @@ import org.junit.Test
 
 class YtDlpArgsTest {
     @Test
-    fun acceptsHttpAndHttps() {
+    fun acceptsHttpsAndUpgradesHttp() {
         assertEquals("https://example.test/v?x=1", UrlGuard.requireHttpUrl("https://example.test/v?x=1"))
-        assertEquals("http://example.test/v", UrlGuard.requireHttpUrl("http://example.test/v"))
+        assertEquals("https://example.test/v", UrlGuard.requireHttpUrl("http://example.test/v"))
+        assertEquals("https://example.test/a?u=http://x.test", UrlGuard.requireHttpUrl("HTTP://example.test/a?u=http://x.test"))
     }
 
     @Test
@@ -76,6 +77,12 @@ class YtDlpArgsTest {
         } catch (_: IllegalArgumentException) {
             // expected
         }
+    }
+
+    @Test
+    fun httpIsUpgradedEverywhere() {
+        assertEquals("https://example.test/v", YtDlpArgs.download("http://example.test/v", "best", "/s").url)
+        assertEquals("https://example.test/v", YtDlpArgs.probe("http://example.test/v").url)
     }
 
     @Test

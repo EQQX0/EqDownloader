@@ -25,21 +25,31 @@ data class Item(
     val active: Boolean get() = state == "queued" || state == "running"
 }
 
-/** Starts the bundled python and ffmpeg once. The first run unpacks them, which takes a few seconds. */
-object YtDlpRuntime {
-    @Synchronized
-    fun ensure(context: Context) {
-        val app = context.applicationContext
-        YoutubeDL.getInstance().init(app)
-        FFmpeg.getInstance().init(app)
-    }
+/** Thrown inside a run when the user cancelled it. */
+class DownloadCancelled : Exception()
+
+/** Everything [DownloadCore] needs from the outside world, so the logic can be tested on the JVM. */
+interface DownloadBackend {
+    fun stagingRoot(): File
+
+    /** Makes the yt-dlp runtime ready. The first call unpacks python and ffmpeg and takes seconds. */
+    fun prepare()
+
+    /** Runs yt-dlp and blocks until it ends. Throws [DownloadCancelled] if the process was destroyed. */
+    fun execute(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit)
+
+    /** Kills the process of download [id]. False when no such process is registered (yet). */
+    fun destroy(id: String): Boolean
+
+    /** Moves a finished file into Downloads/EqDownload and returns the name it really got. */
+    fun save(file: File): String
 }
 
 /**
  * All download state and the work of one download. [DownloadService] gives it a foreground process to run in;
  * [EqEnginePlugin] reads it and forwards changes to the web view.
  */
-object DownloadCenter {
+class DownloadCore(private val backend: DownloadBackend) {
     private class Job(val staging: File) {
         @Volatile var cancelled = false
     }
@@ -60,18 +70,20 @@ object DownloadCenter {
 
     fun activeCount(): Int = synchronized(items) { items.values.count { it.active } }
 
-    fun stagingRoot(context: Context): File = File(context.noBackupFilesDir, "staging").also { it.mkdirs() }
+    fun stagingRoot(): File = backend.stagingRoot().also { it.mkdirs() }
 
     /** Validates untrusted input and registers a queued item. Throws [EngineException] or [IllegalArgumentException]. */
-    fun enqueue(context: Context, url: String?, preset: String?): Item {
+    fun enqueue(url: String?, preset: String?): Item {
         val safeUrl = UrlGuard.requireHttpUrl(url)
         Presets.spec(preset ?: "")
         val id = UUID.randomUUID().toString()
         val item = Item(id = id, url = safeUrl, title = safeUrl, preset = preset!!, state = "queued")
         // Every download works in its own staging folder, so two downloads of one URL never share a .part file.
-        jobs[id] = Job(File(stagingRoot(context), StagingSweeper.PREFIX + id))
-        synchronized(items) { items[id] = item }
-        emit(item)
+        jobs[id] = Job(File(stagingRoot(), StagingSweeper.PREFIX + id))
+        synchronized(items) {
+            items[id] = item
+            emit(item)
+        }
         return item
     }
 
@@ -82,7 +94,7 @@ object DownloadCenter {
         val item = synchronized(items) { items[id] } ?: return
         if (!item.active) return
         job.cancelled = true
-        YoutubeDL.getInstance().destroyProcessById(id)
+        backend.destroy(id) // false when the process does not exist yet; run() re-checks the flag
         // A download still waiting for a worker never reaches run(), so settle it here.
         if (item.state == "queued") finish(id, job) { it.copy(state = "cancelled", speedBps = null, etaSec = null) }
     }
@@ -98,45 +110,52 @@ object DownloadCenter {
     }
 
     /** Runs one download to the end. Blocks; call it from a worker thread. */
-    fun run(context: Context, id: String) {
+    fun run(id: String) {
         val job = jobs[id] ?: return
         val start = synchronized(items) { items[id] } ?: return
-        if (job.cancelled || !start.active) return
-        update(id) { it.copy(state = "running") }
+        if (!start.active) return
         try {
-            YtDlpRuntime.ensure(context)
+            // A cancel can land at any point before the process exists (first-run unpacking takes seconds),
+            // and destroying a process that is not registered yet does nothing. So the flag is re-checked
+            // between every step, and once more from the progress callback after the process is up.
+            checkCancelled(job)
+            update(id) { it.copy(state = "running") }
+            backend.prepare()
+            checkCancelled(job)
             job.staging.mkdirs()
+            checkCancelled(job)
             val spec = YtDlpArgs.download(start.url, start.preset, job.staging.absolutePath)
-            val request = YoutubeDLRequest(spec.url)
-            for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
-            request.addCommands(listOf("--")) // the library puts the url after this
             var lastEmit = 0L
-            YoutubeDL.getInstance().execute(request, id, false) { progress, eta, line ->
-                val now = System.currentTimeMillis()
-                if (now - lastEmit >= 400 && !job.cancelled) {
-                    lastEmit = now
-                    update(id) {
-                        it.copy(
-                            percent = ProgressParser.percent(progress),
-                            speedBps = ProgressParser.speedBps(line) ?: it.speedBps,
-                            etaSec = ProgressParser.eta(eta),
-                        )
+            backend.execute(spec, id) { progress, eta, line ->
+                if (job.cancelled) {
+                    backend.destroy(id)
+                } else {
+                    val now = System.currentTimeMillis()
+                    if (now - lastEmit >= 400) {
+                        lastEmit = now
+                        update(id) {
+                            it.copy(
+                                percent = ProgressParser.percent(progress),
+                                speedBps = ProgressParser.speedBps(line) ?: it.speedBps,
+                                etaSec = ProgressParser.eta(eta),
+                            )
+                        }
                     }
                 }
             }
-            if (job.cancelled) throw YoutubeDL.CanceledException()
+            checkCancelled(job)
             val produced = job.staging.listFiles { f -> f.isFile && !TEMP.containsMatchIn(f.name) }
                 ?.maxByOrNull { it.length() }
                 ?: throw EngineException("unknown", "yt-dlp finished without producing a file")
-            val saved = MediaStoreSaver.saveNamed(context, produced, FileNames.mimeFor(FileNames.split(produced.name).second))
+            val name = backend.save(produced)
             finish(id, job) {
                 it.copy(
                     state = "done", percent = 100.0, speedBps = null, etaSec = null,
-                    title = FileNames.split(saved.displayName).first,
-                    filePath = "${MediaStoreSaver.DISPLAY_PATH}/${saved.displayName}",
+                    title = FileNames.split(name).first,
+                    filePath = "${MediaStoreSaver.DISPLAY_PATH}/$name",
                 )
             }
-        } catch (e: YoutubeDL.CanceledException) {
+        } catch (e: DownloadCancelled) {
             finish(id, job) { it.copy(state = "cancelled", speedBps = null, etaSec = null) }
         } catch (e: InterruptedException) {
             Thread.currentThread().interrupt()
@@ -151,27 +170,78 @@ object DownloadCenter {
         }
     }
 
+    private fun checkCancelled(job: Job) {
+        if (job.cancelled) throw DownloadCancelled()
+    }
+
     /** Deletes the staging folder, then publishes the final state. */
     private fun finish(id: String, job: Job, change: (Item) -> Item) {
         job.staging.deleteRecursively()
-        update(id) { if (it.active) change(it) else it }
+        update(id, change)
         jobs.remove(id)
     }
 
+    /**
+     * Applies a change to an item that is still queued or running, and announces it, all under one lock so
+     * announcements arrive in the order of the changes. An item that has ended never changes again.
+     */
     private fun update(id: String, change: (Item) -> Item) {
-        val next = synchronized(items) {
+        synchronized(items) {
             val cur = items[id] ?: return
-            val n = change(cur)
-            if (n == cur) return
-            items[id] = n
-            n
+            if (!cur.active) return
+            val next = change(cur)
+            if (next == cur) return
+            items[id] = next
+            emit(next)
         }
-        emit(next)
     }
 
     private fun emit(item: Item) {
         for (l in listeners) runCatching { l(item) }
     }
 
-    private val TEMP = Regex("""\.(part|ytdl|temp|tmp)$""", RegexOption.IGNORE_CASE)
+    private companion object {
+        val TEMP = Regex("""\.(part|ytdl|temp|tmp)$""", RegexOption.IGNORE_CASE)
+    }
+}
+
+/** Starts the bundled python and ffmpeg once. The first run unpacks them, which takes a few seconds. */
+object YtDlpRuntime {
+    @Synchronized
+    fun ensure(context: Context) {
+        val app = context.applicationContext
+        YoutubeDL.getInstance().init(app)
+        FFmpeg.getInstance().init(app)
+    }
+}
+
+private class AndroidBackend(private val context: Context) : DownloadBackend {
+    override fun stagingRoot(): File = File(context.noBackupFilesDir, "staging")
+
+    override fun prepare() = YtDlpRuntime.ensure(context)
+
+    override fun execute(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit) {
+        val request = YoutubeDLRequest(spec.url)
+        for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
+        request.addCommands(listOf("--")) // the library puts the url after this
+        try {
+            YoutubeDL.getInstance().execute(request, id, false) { p, eta, line -> onProgress(p, eta, line) }
+        } catch (e: YoutubeDL.CanceledException) {
+            throw DownloadCancelled()
+        }
+    }
+
+    override fun destroy(id: String): Boolean = YoutubeDL.getInstance().destroyProcessById(id)
+
+    override fun save(file: File): String =
+        MediaStoreSaver.saveNamed(context, file, FileNames.mimeFor(FileNames.split(file.name).second)).displayName
+}
+
+/** Process-wide holder of the one [DownloadCore]. */
+object DownloadCenter {
+    @Volatile
+    private var core: DownloadCore? = null
+
+    fun install(context: Context): DownloadCore =
+        core ?: synchronized(this) { core ?: DownloadCore(AndroidBackend(context.applicationContext)).also { core = it } }
 }
