@@ -41,7 +41,15 @@ export function runEngineContract(name: string, make: () => Engine): void {
 
     it('cancel on a running id yields state cancelled', async () => {
       const e = make();
+      let running!: () => void;
+      const sawRunning = new Promise<void>((resolve) => {
+        running = resolve;
+      });
+      e.onProgress((i) => {
+        if (i.state === 'running') running();
+      });
       const id = await e.start('https://example.test/v', 'mp3', '/tmp');
+      await sawRunning;
       await e.cancel(id);
       const item = (await e.list()).find((i) => i.id === id);
       expect(item?.state).toBe('cancelled');
