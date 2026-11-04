@@ -2,38 +2,61 @@
 (() => {
   const ua = navigator.userAgent;
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
-  const android = /Android/.test(ua);
-  const windows = /Windows/.test(ua);
-  const base = 'https://github.com/EQQX0/EqDownloader/releases/download/v0.1.3/';
   const url = location.origin + '/#get';
-  const buttons = [document.getElementById('send'), document.getElementById('send2')].filter(Boolean);
-  const note = document.getElementById('device');
-
-  if (ios) {
-    note.textContent = 'You are on an iPhone or iPad. Send this page to the computer or Android phone you want to use.';
-  } else if (android || windows) {
-    const first = buttons[0];
-    first.href = base + (android ? 'EqDownload.apk' : 'EqDownload.exe');
-    first.textContent = android ? 'Download for Android' : 'Download for Windows';
-    note.textContent = android
-      ? 'GitHub asks you to sign in first. The Android app has not been run on a phone yet.'
-      : 'GitHub asks you to sign in first. Windows warns about an unknown publisher: choose More info, then Run anyway.';
-    if (buttons[1]) buttons[1].href = 'mailto:?subject=EqDownload&body=' + encodeURIComponent('EqDownload: ' + url);
-  }
-
-  if (navigator.share && (ios || !(android || windows))) {
-    for (const b of buttons) {
+  const buttons = [document.getElementById('send2')].filter(Boolean);
+  const shareUrl = 'mailto:?subject=EqDownload&body=' + encodeURIComponent('EqDownload: ' + url);
+  for (const b of buttons) {
+    b.href = shareUrl;
+    if (navigator.share) {
       b.addEventListener('click', async (e) => {
         e.preventDefault();
         try { await navigator.share({ title: 'EqDownload', text: 'EqDownload download page', url }); }
-        catch (err) { if (err && err.name !== 'AbortError') location.href = b.href; }
+        catch (err) { if (err && err.name !== 'AbortError') location.href = shareUrl; }
       });
     }
-  } else {
-    for (const b of buttons) {
-      if (b.getAttribute('href').startsWith('mailto:')) b.href = 'mailto:?subject=EqDownload&body=' + encodeURIComponent('EqDownload: ' + url);
-    }
   }
+
+  // The finder: ask /api/probe for the file list, then show plain links the browser downloads itself.
+  const form = document.getElementById('finder');
+  const out = document.getElementById('result');
+  const safe = (u) => typeof u === 'string' && /^https?:\/\//.test(u);
+  const say = (text) => { out.textContent = ''; const p = document.createElement('p'); p.textContent = text; out.append(p); };
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const link = form.elements.url.value.trim();
+    if (!link) return;
+    say('Looking...');
+    const go = form.querySelector('button');
+    go.disabled = true;
+    try {
+      const res = await fetch('/api/probe?url=' + encodeURIComponent(link));
+      const data = await res.json();
+      if (!res.ok) { say(data.error || 'Could not read that link.'); return; }
+      out.textContent = '';
+      if (safe(data.thumbnail)) {
+        const img = document.createElement('img');
+        img.src = data.thumbnail; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.loading = 'lazy';
+        out.append(img);
+      }
+      const t = document.createElement('p'); t.className = 'r-title'; t.textContent = data.title; out.append(t);
+      const list = document.createElement('div'); list.className = 'r-links';
+      for (const f of data.formats) {
+        if (!safe(f.url)) continue;
+        const a = document.createElement('a');
+        a.className = 'button'; a.href = f.url; a.rel = 'noopener noreferrer'; a.target = '_blank'; a.setAttribute('download', '');
+        a.textContent = f.label + (f.size ? ', ' + f.size : '');
+        list.append(a);
+      }
+      out.append(list);
+      if (ios) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'On iPhone, the file opens in Safari. Use the Share button, then Save to Files or Save Video.'; out.append(n); }
+    } catch {
+      say('No connection. Try again.');
+    } finally {
+      go.disabled = false;
+    }
+  });
+  const preset = new URLSearchParams(location.search).get('url');
+  if (preset) { form.elements.url.value = preset; form.requestSubmit(); }
 
   const items = document.querySelectorAll('[data-reveal]');
   items.forEach((el, i) => el.style.setProperty('--i', String(i % 4)));
