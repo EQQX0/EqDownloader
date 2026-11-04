@@ -242,7 +242,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       void autoUpdate().then((ok) => {
         if (!ok) return;
         set({ error: null });
-        void begin(item.url, item.preset, title, item.thumbnail ?? null);
+        void begin(item.url, item.preset, title, thumbs.get(item.id) ?? item.thumbnail ?? null);
       });
     }
   };
