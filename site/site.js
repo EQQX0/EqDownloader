@@ -125,9 +125,16 @@
         if (f.url.startsWith('/') && window.showSaveFilePicker) a.addEventListener('click', (ev) => saveAs(ev, a, data.title, f.ext));
         list.append(a);
         if (canPhotos && f.kind === 'video' && /^(mp4|m4v|mov)$/.test(f.ext || '') && f.dl) {
-          const b = document.createElement('button'); b.type = 'button'; b.className = 'button'; b.textContent = 'Save to Photos, ' + f.label;
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'button photos'; b.textContent = 'Save to Photos, ' + f.label;
           toPhotos(b, f, data.title); list.append(b);
         }
+      }
+      if (list.querySelector('.photos')) {
+        list.classList.add('has-photos');
+        list.prepend(...list.querySelectorAll('.photos'));
+        const hint = document.createElement('p'); hint.className = 'r-hint';
+        hint.textContent = 'To get the video into your Photos app: tap Save to Photos, wait for the file, tap again, then choose Save Video. The smaller links below save to the Files app instead.';
+        out.append(hint);
       }
       out.append(list);
       if (ios) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'On iPhone, tap Save to Photos, wait for the file, tap again and choose Save Video. The plain link saves to the Files app instead.'; out.append(n); }
