@@ -88,7 +88,7 @@ class EqEnginePlugin : Plugin() {
         // Validate before asking for anything.
         try {
             UrlGuard.requireHttpUrl(call.getString("url"))
-            Presets.spec(call.getString("preset") ?: "")
+            requirePreset(call.getString("preset"))
         } catch (e: Throwable) {
             return reject(call, e)
         }
@@ -157,8 +157,17 @@ class EqEnginePlugin : Plugin() {
     }
 
     private fun reject(call: PluginCall, e: Throwable) {
-        val err = if (e is IllegalArgumentException) EngineException("unknown", "Unknown quality preset.") else ErrorMapper.fromThrowable(e)
+        val err = ErrorMapper.fromThrowable(e)
         call.reject(err.message, err.code)
+    }
+
+    /** Only the Presets.spec lookup maps to "Unknown quality preset."; other exceptions keep their own message. */
+    private fun requirePreset(preset: String?) {
+        try {
+            Presets.spec(preset ?: "")
+        } catch (_: IllegalArgumentException) {
+            throw EngineException("unknown", "Unknown quality preset.")
+        }
     }
 
     private fun Item.toJs(): JSObject = JSObject()

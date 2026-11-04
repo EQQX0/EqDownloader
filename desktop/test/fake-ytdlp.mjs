@@ -40,11 +40,12 @@ const FAIL_MESSAGES = {
 };
 
 if (argv.includes('-U')) {
-  console.log('Updated yt-dlp to fake-2.0.0');
+  console.log(argv.includes('--ignore-config') ? 'Updated yt-dlp to fake-2.0.0' : 'Updated yt-dlp (no isolation)');
   process.exit(0);
 }
 if (argv.includes('--version')) {
-  console.log('fake-2.0.0');
+  // Echo the isolation flags so tests can prove run() passes them.
+  console.log(argv.includes('--ignore-config') && argv.includes('--no-plugin-dirs') ? 'fake-2.0.0' : 'fake-missing-isolation');
   process.exit(0);
 }
 

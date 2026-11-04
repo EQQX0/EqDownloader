@@ -21,6 +21,7 @@ extraResources:
     filter:
       - yt-dlp.exe
       - ffmpeg.exe
+      - ffmpeg-LICENSE.txt
   - from: ../ui/dist
     to: ui
     filter:

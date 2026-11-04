@@ -66,6 +66,7 @@ describe('parseProgressLine', () => {
 describe('buildArgs', () => {
   it('includes the required flags and output template', () => {
     const a = buildArgs('https://x.test/v', 'best', 'C:\\dl');
+    expect(a.slice(0, 2)).toEqual(['--ignore-config', '--no-plugin-dirs']);
     expect(a).toContain('--newline');
     expect(a).toContain('--windows-filenames');
     expect(a[a.indexOf('--progress-template') + 1]).toBe(
@@ -101,6 +102,7 @@ describe('mapStderr', () => {
     ['ERROR: HTTP Error 403: Forbidden', 'outdated'],
     ['WARNING: nsig extraction failed', 'outdated'],
     ['OSError: [Errno 28] No space left on device', 'disk'],
+    ["PermissionError: [Errno 13] Permission denied: 'C:\dl'", 'disk'],
     ['ERROR: something else', 'unknown'],
     ['ERROR: a message was generated', 'unknown'],
   ];

@@ -18,6 +18,9 @@ import { safeFileName } from './filename';
 export const OUTPUT_TEMPLATE = '%(title).120B [%(id)s].%(ext)s';
 export const PROGRESS_TEMPLATE = 'download:%(progress._percent_str)s|%(progress.speed)s|%(progress.eta)s';
 
+/** Placed first on every yt-dlp invocation so a user's config files and plugins cannot change behaviour or traffic. */
+export const ISOLATION_ARGS = ['--ignore-config', '--no-plugin-dirs'] as const;
+
 const STDERR_CAP = 64 * 1024;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const STAGING_PREFIX = '.eqdl-';
@@ -40,6 +43,7 @@ export interface ProgressInfo {
 export function buildArgs(url: string, preset: Preset, destination: string): string[] {
   const spec = presetToSpec(preset);
   const args = [
+    ...ISOLATION_ARGS,
     '--newline',
     '--no-colors',
     '--no-playlist',
@@ -86,7 +90,7 @@ export function mapStderr(text: string): EngineErrorCode {
   if (/Sign in|\bage\b|not available in your country/i.test(text)) return 'blocked';
   if (/Unable to download webpage/i.test(text)) return 'network';
   if (/HTTP Error 403|nsig/i.test(text)) return 'outdated';
-  if (/No space left/i.test(text)) return 'disk';
+  if (/No space left|Permission denied/i.test(text)) return 'disk';
   return 'unknown';
 }
 
@@ -398,7 +402,7 @@ export class YtDlpEngine implements Engine {
 
   private run(args: string[]): Promise<{ code: number | null; stdout: string; stderr: string }> {
     return new Promise((resolve, reject) => {
-      const child = spawn(this.opts.ytdlpPath, [...(this.opts.ytdlpArgsPrefix ?? []), ...args], {
+      const child = spawn(this.opts.ytdlpPath, [...(this.opts.ytdlpArgsPrefix ?? []), ...ISOLATION_ARGS, ...args], {
         shell: false,
         windowsHide: true,
         stdio: ['ignore', 'pipe', 'pipe'],

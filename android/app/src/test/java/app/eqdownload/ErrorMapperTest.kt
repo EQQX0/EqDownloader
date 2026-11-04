@@ -15,6 +15,7 @@ class ErrorMapperTest {
         "ERROR: HTTP Error 403: Forbidden" to "outdated",
         "WARNING: nsig extraction failed" to "outdated",
         "OSError: [Errno 28] No space left on device" to "disk",
+        "PermissionError: [Errno 13] Permission denied: '/sdcard/x'" to "disk",
         "ERROR: something else" to "unknown",
         "ERROR: a message was generated" to "unknown",
         "" to "unknown",

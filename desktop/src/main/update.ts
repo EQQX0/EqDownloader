@@ -17,7 +17,12 @@ const MAX_JSON_BYTES = 8 * 1024 * 1024;
 const EXE_ASSET = 'yt-dlp.exe';
 const SUMS_ASSET = 'SHA2-256SUMS';
 
-const fail = (message: string): EngineError => ({ code: 'network', message });
+/**
+ * Updater failures keep their real message under `unknown`. Only a rejected fetch means the network is
+ * down (see `unreachable`); a checksum mismatch, a blocked host or an HTTP 403 is not that.
+ */
+const fail = (message: string): EngineError => ({ code: 'unknown', message });
+const unreachable = (message: string): EngineError => ({ code: 'network', message });
 
 /** Throws unless the URL is https on one of the GitHub hosts the updater may contact. */
 export function assertAllowedUrl(url: string): void {
@@ -106,7 +111,7 @@ export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
       try {
         res = await f(url, { redirect: 'manual', headers: { 'User-Agent': 'EqDownload', Accept: 'application/octet-stream, application/vnd.github+json' } });
       } catch (e) {
-        throw fail(`Could not reach GitHub: ${e instanceof Error ? e.message : String(e)}`);
+        throw unreachable(`Could not reach GitHub: ${e instanceof Error ? e.message : String(e)}`);
       }
       if (res.status >= 300 && res.status < 400) {
         const loc = res.headers.get('location');
@@ -144,7 +149,11 @@ export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
     await fs.rename(tmp, dest);
   } catch (e) {
     await fs.rm(tmp, { force: true });
-    throw { code: 'disk', message: `Could not save update: ${e instanceof Error ? e.message : String(e)}` } satisfies EngineError;
+    // Not 'disk': that code makes the UI name the download folder, which is not where this write happens.
+    throw {
+      code: 'unknown',
+      message: `Could not save the updated yt-dlp.exe to ${opts.userDataDir}: ${e instanceof Error ? e.message : String(e)}`,
+    } satisfies EngineError;
   }
   return release.tag_name;
 }

@@ -13,13 +13,15 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 const YTDLP_TAG = '2026.10.26';
-const FFMPEG_TAG = 'autobuild-2026-11-03-12-50';
-const FFMPEG_ZIP = 'ffmpeg-n8.1.3-32-g760d10603e-win64-gpl-8.1.zip';
+// BtbN deletes daily builds after about two weeks. Pin a month-end build (autobuild-YYYY-MM-DD-*) and
+// re-pin before it ages out of the release list.
+const FFMPEG_TAG = 'autobuild-2026-10-31-12-59';
+const FFMPEG_ZIP = 'ffmpeg-n8.1.3-27-g8dca1586f4-win64-gpl-8.1.zip';
 
 const PINS = {
   ytdlpExe: 'f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d',
-  ffmpegZip: 'f41877437ec23e4619e5507180a020005738fe09376fdfcd3fdc0f4c549afc7c',
-  ffmpegExe: 'e49f39b5720de3edf15d63a76e4d6e8d04c0c2e641b0ca118360ee4c4bd52e36',
+  ffmpegZip: '401dffcf14c301082e1fc03b0bc876b92ea676bfc521fc56e80a1537d137034f',
+  ffmpegExe: 'c46215f8889634396f0ac0acac738ef2145175e5b6caf28b3daa8ac9a9980c5f',
 };
 
 const YTDLP_URL = `https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_TAG}/yt-dlp.exe`;
@@ -81,7 +83,8 @@ try {
   }
 
   const ffmpegDest = path.join(binDir, 'ffmpeg.exe');
-  if (await matches(ffmpegDest, PINS.ffmpegExe)) {
+  const licenseDest = path.join(binDir, 'ffmpeg-LICENSE.txt');
+  if ((await matches(ffmpegDest, PINS.ffmpegExe)) && fs.existsSync(licenseDest)) {
     console.log('ffmpeg.exe: up to date');
   } else {
     console.log(`ffmpeg.exe: downloading ${FFMPEG_ZIP} (large)`);
@@ -91,12 +94,16 @@ try {
     fs.mkdirSync(extractDir);
     // Windows ships bsdtar (reads zip). Use it by full path: Git Bash puts GNU tar first on PATH.
     const tar = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
-    execFileSync(tar, ['-xf', zip, '-C', extractDir, '*/bin/ffmpeg.exe'], { stdio: 'inherit' });
+    execFileSync(tar, ['-xf', zip, '-C', extractDir, '*/bin/ffmpeg.exe', '*/LICENSE.txt'], { stdio: 'inherit' });
     const found = fs.readdirSync(extractDir, { withFileTypes: true }).find((d) => d.isDirectory());
     const extracted = found && path.join(extractDir, found.name, 'bin', 'ffmpeg.exe');
     if (!extracted || !fs.existsSync(extracted)) throw new Error('ffmpeg.exe not found in archive');
+    const license = path.join(extractDir, found.name, 'LICENSE.txt');
+    if (!fs.existsSync(license)) throw new Error('LICENSE.txt not found in archive');
     requirePin('ffmpeg.exe', PINS.ffmpegExe, await sha256File(extracted));
     fs.copyFileSync(extracted, ffmpegDest);
+    // The GPL text travels with the exe. It comes from the zip, whose hash is pinned above.
+    fs.copyFileSync(license, licenseDest);
   }
   console.log('binaries ready in', binDir);
 } finally {

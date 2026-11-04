@@ -101,9 +101,31 @@ describe('updateYtDlp', () => {
     await fs.writeFile(path.join(dir, 'yt-dlp.exe'), 'old');
     await expect(
       updateYtDlp({ userDataDir: dir, fetch: makeFetch(`${'0'.repeat(64)}  yt-dlp.exe\n`) }),
-    ).rejects.toMatchObject({ code: 'network' });
+    ).rejects.toMatchObject({ code: 'unknown' });
     expect(await fs.readFile(path.join(dir, 'yt-dlp.exe'), 'utf8')).toBe('old');
     expect(await fs.readdir(dir)).toEqual(['yt-dlp.exe']);
+  });
+
+  it('reports a rejected fetch as network and a 403 as its real message', async () => {
+    const dir = await tmp();
+    const down = (async () => {
+      throw new TypeError('fetch failed');
+    }) as unknown as typeof fetch;
+    await expect(updateYtDlp({ userDataDir: dir, fetch: down })).rejects.toMatchObject({ code: 'network' });
+    const limited = (async () => new Response('', { status: 403 })) as unknown as typeof fetch;
+    await expect(updateYtDlp({ userDataDir: dir, fetch: limited })).rejects.toMatchObject({
+      code: 'unknown',
+      message: expect.stringContaining('403'),
+    });
+  });
+
+  it('a save failure is not reported as a download-folder problem', async () => {
+    const dir = await tmp();
+    await fs.mkdir(path.join(dir, 'yt-dlp.exe')); // rename onto a directory fails
+    const err = await updateYtDlp({ userDataDir: dir, fetch: makeFetch(`${hex(exe)}  yt-dlp.exe
+`) }).catch((e) => e);
+    expect(err.code).toBe('unknown');
+    expect(err.message).toContain('Could not save the updated yt-dlp.exe');
   });
 
   it('refuses a download URL outside the allowed hosts', async () => {
@@ -122,7 +144,7 @@ describe('updateYtDlp', () => {
     const dir = await tmp();
     const noSums = { ...release, assets: [release.assets[0]!] };
     const f = (async () => new Response(JSON.stringify(noSums), { status: 200 })) as unknown as typeof fetch;
-    await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+    await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'unknown' });
   });
 
   describe('redirects and size caps', () => {
@@ -153,7 +175,7 @@ describe('updateYtDlp', () => {
         if (url.endsWith('/yt-dlp.exe')) return resp(302, { location: 'https://evil.example/x' });
         return base(url, init);
       }) as unknown as typeof fetch;
-      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'unknown' });
       expect(seen.some((u) => u.includes('evil.example'))).toBe(false);
       expect(await fs.readdir(dir)).toEqual([]);
     });
@@ -161,7 +183,7 @@ describe('updateYtDlp', () => {
     it('caps redirect hops', async () => {
       const dir = await tmp();
       const f = (async () => resp(302, { location: 'https://github.com/loop' })) as unknown as typeof fetch;
-      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'unknown' });
     });
 
     it('rejects an oversize download and keeps the old binary', async () => {
@@ -169,7 +191,7 @@ describe('updateYtDlp', () => {
       await fs.writeFile(path.join(dir, 'yt-dlp.exe'), 'old');
       await expect(
         updateYtDlp({ userDataDir: dir, fetch: makeFetch(`${hex(exe)}  yt-dlp.exe\n`), maxExeBytes: 4 }),
-      ).rejects.toMatchObject({ code: 'network' });
+      ).rejects.toMatchObject({ code: 'unknown' });
       expect(await fs.readFile(path.join(dir, 'yt-dlp.exe'), 'utf8')).toBe('old');
       expect(await fs.readdir(dir)).toEqual(['yt-dlp.exe']);
     });

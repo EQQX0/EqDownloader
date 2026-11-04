@@ -14,7 +14,7 @@ object ErrorMapper {
     private val BLOCKED = Regex("""Sign in|\bage\b|not available in your country""", RegexOption.IGNORE_CASE)
     private val NETWORK = Regex("Unable to download webpage", RegexOption.IGNORE_CASE)
     private val OUTDATED = Regex("HTTP Error 403|nsig", RegexOption.IGNORE_CASE)
-    private val DISK = Regex("No space left", RegexOption.IGNORE_CASE)
+    private val DISK = Regex("No space left|Permission denied", RegexOption.IGNORE_CASE)
 
     /** Same rules, same order as `mapStderr` in desktop/src/main/ytdlp.ts. */
     fun code(stderr: String): String = when {
@@ -37,7 +37,8 @@ object ErrorMapper {
         t is EngineException -> t
         t is UnknownHostException || t is ConnectException || t is SocketTimeoutException ->
             EngineException("network", "No network connection.")
-        t is IOException && code(t.message.orEmpty()) == "disk" -> EngineException("disk", "No space left on the device.")
+        t is IOException && code(t.message.orEmpty()) == "disk" ->
+            EngineException("disk", if (t.message.orEmpty().contains("Permission denied", true)) "Permission denied." else "No space left on the device.")
         else -> fromStderr(t.message.orEmpty())
     }
 }

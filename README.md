@@ -18,13 +18,13 @@ Check the downloads against `SHA256SUMS.txt` on the release.
 
 1. Paste a link, or share one from another app.
 2. EqDownload shows the title and thumbnail. Pick Best, 1080p, 720p, MP3 or M4A.
-3. Press Download. Progress, speed and ETA show under Downloads. Finished files show under Library.
+3. Press Download. Progress, speed and ETA show under Downloads. Finished files are listed in Library. On Windows, "Show in folder" opens the file's folder.
 
 Files go to your Downloads folder on Windows (change it in Settings) and to `Downloads/EqDownload` on Android.
 
 ## When a download fails
 
-Sites change often, and yt-dlp changes with them. If a link that used to work stops working, open Settings and press Update engine. The app asks GitHub for the newest yt-dlp release and checks its SHA-256 before using it.
+Sites change often, and yt-dlp changes with them. If a link that used to work stops working, open Settings and press Update engine. On Windows the app asks GitHub for the newest yt-dlp release and checks its SHA-256 against the release's published checksum file before using it. On Android the update uses the youtubedl-android library's own updater over HTTPS. It does not check a checksum.
 
 Some sites need a login, an age check, or a different region. EqDownload shows the reason yt-dlp reports and does not retry on its own.
 
@@ -54,6 +54,6 @@ cd android && ./gradlew testDebugUnitTest assembleRelease
 ## Third-party software
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp), Unlicense. Bundled.
-- [FFmpeg](https://ffmpeg.org), built with GPL components. The Windows exe bundles a GPL build from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds). The Android app bundles the ffmpeg library from [youtubedl-android](https://github.com/yausername/youtubedl-android). The source for every bundled FFmpeg build is available from those projects. If you cannot find it there, open an issue and the maintainer will send you the source for the exact version you have.
+- [FFmpeg](https://ffmpeg.org), built with GPL components. The Windows exe bundles a GPL build from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), with its license text shipped as `ffmpeg-LICENSE.txt` next to ffmpeg.exe. The Android app bundles the ffmpeg library from [youtubedl-android](https://github.com/yausername/youtubedl-android). The source for every bundled FFmpeg build is available from those projects. If you cannot find it there, open an issue and the maintainer will send you the source for the exact version you have.
 - [Electron](https://www.electronjs.org), [Capacitor](https://capacitorjs.com) and [youtubedl-android](https://github.com/yausername/youtubedl-android).
-- Fonts are listed with their licenses in `ui/src/assets/fonts`.
+- Fonts are listed with their licenses in `ui/public/fonts/*-OFL.txt`.
