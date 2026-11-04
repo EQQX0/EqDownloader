@@ -1,0 +1,13 @@
+/* Functional layout only. Visual design is layered on later without changing behaviour or test ids. */
+body { margin: 0; font-family: system-ui, sans-serif; }
+#app { max-width: 52rem; margin: 0 auto; padding: 1rem; }
+nav ul { display: flex; gap: 0.5rem; list-style: none; padding: 0; margin: 0 0 1rem; }
+button, input, select { font: inherit; }
+input[type='text'] { width: min(100%, 28rem); }
+form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid currentColor; outline-offset: 2px; }
+[hidden] { display: none !important; }
+ol, ul { padding-left: 1.25rem; }
+li { margin-bottom: 0.75rem; }
+progress { display: block; width: 100%; max-width: 20rem; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

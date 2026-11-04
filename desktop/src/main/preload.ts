@@ -12,6 +12,7 @@ const bridge: EqBridge = {
   cancel: (id: string) => call('eq:cancel', id),
   list: () => call('eq:list'),
   updateEngine: () => call('eq:updateEngine'),
+  getDefaultFolder: () => call('eq:getDefaultFolder'),
   chooseFolder: () => call('eq:chooseFolder'),
   revealFile: (p: string) => call('eq:revealFile', p),
   onProgress(handler: (item: DownloadItem) => void): () => void {

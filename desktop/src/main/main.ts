@@ -59,6 +59,7 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   handle('eq:cancel', (id) => engine.cancel(str(id, 'id')));
   handle('eq:list', () => engine.list());
   handle('eq:updateEngine', () => engine.updateEngine());
+  handle('eq:getDefaultFolder', () => app.getPath('downloads'));
   handle('eq:chooseFolder', async () => {
     const win = getWindow();
     const opts = { properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> };
