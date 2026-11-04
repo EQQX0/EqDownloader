@@ -16,3 +16,8 @@ desktop/release/
 desktop/out/
 __pycache__/
 *.pyc
+
+# Local-only project files (not part of the repo)
+/releases/
+/logo-source/
+/reverse-engineering/
