@@ -367,3 +367,6 @@ body::before {
   .job-error { grid-column: 1 / -1; grid-row: 5; }
   .job-action { grid-column: 1 / -1; grid-row: 6; justify-self: stretch; }
 }
+
+/* Buy Me a Coffee's yellow and black. */
+.button.coffee { background: #FFDD00; color: #000; }
