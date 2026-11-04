@@ -29,7 +29,7 @@ export const createLibrary: ScreenFactory = (store) => {
   }
 
   function update(): void {
-    const done = store.state.items.filter((i) => i.state === 'done');
+    const done = store.state.library;
     empty.hidden = done.length > 0;
     const next = JSON.stringify(done.map((i) => [i.id, i.title, i.filePath, i.thumbnail]));
     if (next === key) return;

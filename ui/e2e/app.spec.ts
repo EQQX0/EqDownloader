@@ -96,9 +96,9 @@ test('network failure shows Failed with Retry, and Retry creates a new item', as
   await expect(tid(page, 'item-retry')).toBeVisible();
   await tid(page, 'item-retry').click();
 
-  await expect(page.locator('[data-testid^="item-s-"]')).toHaveCount(2);
+  // Downloads shows only what is downloading now and the last download, so the failed first try is gone.
+  await expect(page.locator('[data-testid^="item-s-"]')).toHaveCount(1);
   await expect(page.getByTestId('item-s-2').getByTestId('item-state')).toHaveText('Done');
-  await expect(page.getByTestId('item-s-1').getByTestId('item-state')).toHaveText('Failed');
   await tid(page, 'nav-library').click();
   await expect(tid(page, 'item-open')).toBeVisible();
   await expect(page.getByText('Stub video', { exact: true })).toBeVisible();

@@ -56,6 +56,10 @@ Sites change often, and yt-dlp changes with them. If a link that used to work st
 
 Some sites need a login, an age check, or a different region. EqDownload shows the reason yt-dlp reports and does not retry on its own.
 
+## Downloads and Library
+
+The Downloads screen shows only what is downloading now and the last download. The Library keeps every finished download (newest first, up to 200) on the device, so it survives app updates and restarts. It is stored in the app's own local storage and never sent anywhere.
+
 ## Privacy
 
 - No analytics, ads, crash reporting or accounts.

@@ -431,3 +431,36 @@ describe('support link', () => {
     expect(openSupport).toHaveBeenCalledOnce();
   });
 });
+
+describe('library', () => {
+  const mem = () => {
+    const data = new Map<string, string>();
+    return { getItem: (k: string) => data.get(k) ?? null, setItem: (k: string, v: string) => void data.set(k, v) };
+  };
+
+  it('keeps finished downloads across a restart and shows them newest first', async () => {
+    const storage = mem();
+    const engine = new TestEngine();
+    const first = createStore(engine, { storage });
+    await first.ready;
+    await first.submitLink('https://a.test/one');
+    await first.startDownload('best');
+    engine.emit({ ...engine.find('t-1'), state: 'done', percent: 100, filePath: '/d/one.mp4' });
+    await first.submitLink('https://a.test/two');
+    await first.startDownload('best');
+    engine.emit({ ...engine.find('t-2'), state: 'done', percent: 100, filePath: '/d/two.mp4' });
+    expect(first.state.library.map((i) => i.filePath)).toEqual(['/d/two.mp4', '/d/one.mp4']);
+
+    const again = createStore(new TestEngine(), { storage }); // the app was updated and restarted
+    await again.ready;
+    expect(again.state.library.map((i) => i.filePath)).toEqual(['/d/two.mp4', '/d/one.mp4']);
+    expect(again.state.items).toEqual([]);
+  });
+
+  it('ignores a damaged saved library', async () => {
+    const storage = { getItem: () => '{"nope":1}', setItem: () => {} };
+    const s = createStore(new TestEngine(), { storage });
+    await s.ready;
+    expect(s.state.library).toEqual([]);
+  });
+});

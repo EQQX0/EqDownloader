@@ -51,7 +51,11 @@ export const createDownloads: ScreenFactory = (store) => {
   }
 
   function update(): void {
-    const { items, settings } = store.state;
+    const { settings } = store.state;
+    // Only what is downloading now, then the one last download.
+    const isActive = (i: DownloadItem): boolean => i.state === 'queued' || i.state === 'running';
+    const last = store.state.items.filter((i) => !isActive(i)).at(-1);
+    const items = [...store.state.items.filter(isActive), ...(last ? [last] : [])];
     empty.hidden = items.length > 0;
     const seen = new Set<string>();
     items.forEach((item, idx) => {

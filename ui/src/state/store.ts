@@ -21,6 +21,8 @@ export interface State {
   probe: ProbeResult | null;
   probing: boolean;
   items: DownloadItem[];
+  /** Finished downloads, newest first. Kept on the device so an app update or restart does not clear them. */
+  library: DownloadItem[];
   error: UiError | null;
   settings: Settings;
   appUpdate: { status: AppUpdateState; version: string | null };
@@ -60,6 +62,36 @@ export interface Store {
 
 const KEY_DEST = 'eq.destination';
 const KEY_PRESET = 'eq.preset';
+const KEY_LIBRARY = 'eq.library';
+const LIBRARY_MAX = 200;
+
+const libraryKey = (i: DownloadItem): string => `${i.url}|${i.filePath ?? ''}`;
+
+/** Reads the saved library, keeping only well-formed entries. */
+function parseLibrary(raw: string | null): DownloadItem[] {
+  if (!raw) return [];
+  try {
+    const list = JSON.parse(raw) as unknown;
+    if (!Array.isArray(list)) return [];
+    const out: DownloadItem[] = [];
+    for (const e of list) {
+      const o = e as Record<string, unknown>;
+      if (typeof o?.id !== 'string' || typeof o.url !== 'string' || typeof o.title !== 'string') continue;
+      out.push({
+        id: o.id, url: o.url, title: o.title.slice(0, 300),
+        preset: PRESET_LIST.includes(o.preset as Preset) ? (o.preset as Preset) : 'best',
+        state: 'done', percent: 100, speedBps: null, etaSec: null,
+        filePath: typeof o.filePath === 'string' ? o.filePath : null,
+        error: null,
+        thumbnail: typeof o.thumbnail === 'string' ? o.thumbnail : null,
+      });
+      if (out.length >= LIBRARY_MAX) break;
+    }
+    return out;
+  } catch {
+    return [];
+  }
+}
 
 function defaultStorage(): Host['storage'] {
   try {
@@ -92,6 +124,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     probe: null,
     probing: false,
     items: [],
+    library: parseLibrary(read(KEY_LIBRARY)),
     error: null,
     settings: {
       destination: read(KEY_DEST) ?? 'Downloads',
@@ -119,8 +152,16 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     const pic = thumbs.get(item.id);
     return t || pic ? { ...item, title: t ?? item.title, thumbnail: pic ?? item.thumbnail ?? null } : item;
   };
+  const remember = (item: DownloadItem): void => {
+    if (item.state !== 'done') return;
+    const key = libraryKey(item);
+    const library = [item, ...state.library.filter((i) => libraryKey(i) !== key)].slice(0, LIBRARY_MAX);
+    state.library = library;
+    write(KEY_LIBRARY, JSON.stringify(library.map(({ id, url, title, preset, filePath, thumbnail }) => ({ id, url, title, preset, filePath, thumbnail }))));
+  };
   const upsert = (item: DownloadItem): void => {
     const next = withTitle(item);
+    remember(next);
     const idx = state.items.findIndex((i) => i.id === item.id);
     const items = idx >= 0 ? state.items.map((i, n) => (n === idx ? next : i)) : [...state.items, next];
     const wasFailed = idx >= 0 && state.items[idx]!.state === 'failed';
@@ -181,6 +222,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     try {
       for (const item of await engine.list()) {
         if (!state.items.some((i) => i.id === item.id)) state.items.push(withTitle(item));
+        remember(withTitle(item));
       }
     } catch {
       // An empty queue is fine if the engine cannot list yet.
