@@ -11,6 +11,7 @@ export interface EqEnginePlugin {
   appVersion(): Promise<{ version: string }>;
   checkAppUpdate(): Promise<{ version: string | null }>;
   installAppUpdate(): Promise<{ version: string }>;
+  readClipboard(): Promise<{ text: string }>;
   addListener(event: 'progress', cb: (item: DownloadItem) => void): Promise<PluginListenerHandle>;
   addListener(event: 'share', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
 }
@@ -97,6 +98,15 @@ export class CapacitorEngine implements Engine {
 
   onProgress(handler: (item: DownloadItem) => void): () => void {
     return listen((cb) => this.plugin.addListener('progress', cb), handler);
+  }
+
+  /** The clipboard text, read natively because a web view is not allowed to read it without a prompt. */
+  async readClipboard(): Promise<string> {
+    try {
+      return (await this.plugin.readClipboard()).text;
+    } catch {
+      return '';
+    }
   }
 
   /** Text shared to the app from another app's Share sheet. */

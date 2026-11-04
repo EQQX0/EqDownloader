@@ -178,6 +178,21 @@ class EqEnginePlugin : Plugin() {
         }
     }
 
+    /**
+     * The text on the clipboard, only while the app is in front (Android hides it from background apps).
+     * It goes to the web view and nowhere else; JavaScript sends it on only if it holds a link the user then checks.
+     */
+    @PluginMethod
+    fun readClipboard(call: PluginCall) {
+        try {
+            val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            val text = cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString().orEmpty()
+            call.resolve(JSObject().put("text", text.take(2000)))
+        } catch (e: Throwable) {
+            call.resolve(JSObject().put("text", ""))
+        }
+    }
+
     /** Runs only when the user presses Update engine. Nothing calls it automatically. */
     @PluginMethod
     fun updateEngine(call: PluginCall) {

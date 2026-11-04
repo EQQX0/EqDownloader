@@ -10,12 +10,14 @@ import { createHome } from './screens/home';
 import { createLibrary } from './screens/library';
 import { createSettings } from './screens/settings';
 import type { ScreenFactory, ScreenView } from './screens/types';
+import { wireClipboard } from './state/clipboard';
 import { wireShare } from './state/share';
 import { createStore, type Screen } from './state/store';
 
 const engine = getEngine();
 const store = createStore(engine, hostFor(engine));
 wireShare(engine, store);
+wireClipboard(engine, store);
 
 const FACTORIES: Record<Screen, ScreenFactory> = {
   home: createHome,

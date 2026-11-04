@@ -45,7 +45,8 @@ Some sites need a login, an age check, or a different region. EqDownload shows t
 ## Privacy
 
 - No analytics, ads, crash reporting or accounts.
-- The app contacts the sites you ask for. When you press Update engine or Check for app update, it also contacts `api.github.com`, `github.com` and GitHub's release asset hosts. Nothing else.
+- The app contacts the sites you ask for. When you press Update engine or Check for app update, it also contacts `api.github.com`, `github.com` and GitHub's release asset hosts. It also does this once per session, without a button press, after a link fails because the engine is out of date. Nothing else.
+- On Android, the app reads the clipboard when it comes to the front. If the text holds a link, it checks that link. The clipboard text stays on the phone unless it is a link you then download.
 - The Android app asks for four permissions: internet, foreground service, foreground service data sync, and notifications. A unit test fails the build if the manifest gains another. (The merged APK also carries one app-private permission that Android adds for broadcast receivers; it exposes nothing to other apps.)
 - The Windows window runs with context isolation, no Node access and a Content-Security-Policy that blocks remote scripts.
 - Android turns cleartext HTTP off and upgrades `http://` links to `https://` before they reach yt-dlp. This is partial protection: yt-dlp runs as its own process, so it may still follow a redirect to an `http://` address.

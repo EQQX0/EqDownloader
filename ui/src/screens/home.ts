@@ -72,6 +72,7 @@ export const createHome: ScreenFactory = (store) => {
       shownUrl = null;
       return;
     }
+    if (!input.value.trim()) input.value = probe.url;
     titleText.set(probe.title);
     title.dataset.length = titleLength(probe.title);
     const img = safeImageSrc(probe.thumbnail);
