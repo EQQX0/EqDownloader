@@ -1,4 +1,5 @@
-import { spawn } from 'node:child_process';
+import { spawn, type ChildProcessByStdio } from 'node:child_process';
+import type { Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
 import fs from 'node:fs/promises';
 import path from 'node:path';
@@ -63,11 +64,18 @@ function numOrNull(s: string): number | null {
   return Number.isFinite(n) ? n : null;
 }
 
+/**
+ * Parses `pct|speed|eta`. Real yt-dlp strips the `download:` type prefix of --progress-template,
+ * so the bare form is the normal one; the prefixed form is accepted too.
+ */
 export function parseProgressLine(line: string): ProgressInfo | null {
-  if (!line.startsWith('download:')) return null;
-  const [pctRaw = '', speedRaw = '', etaRaw = ''] = line.slice('download:'.length).split('|');
-  const pctText = pctRaw.trim().replace(/%$/, '');
-  const percent = numOrNull(pctText);
+  const body = line.trim().replace(/^download:/, '');
+  const parts = body.split('|');
+  if (parts.length !== 3) return null;
+  const [pctRaw = '', speedRaw = '', etaRaw = ''] = parts;
+  const pctText = pctRaw.trim();
+  if (!/^\d+(\.\d+)?%$/.test(pctText)) return null;
+  const percent = numOrNull(pctText.slice(0, -1));
   if (percent === null) return null;
   return { percent, speedBps: numOrNull(speedRaw), etaSec: numOrNull(etaRaw) };
 }
@@ -102,6 +110,7 @@ interface Job {
   destination: string;
   pid: number | undefined;
   cancelled: boolean;
+  completing: boolean;
   finished: boolean;
   exited: Promise<void>;
   kill: () => Promise<void>;
@@ -132,6 +141,7 @@ const rmStaging = (dir: string): Promise<void> =>
 export class YtDlpEngine implements Engine {
   private readonly opts: YtDlpEngineOptions;
   private readonly jobs = new Map<string, Job>();
+  private readonly swept = new Set<string>();
   private readonly handlers = new Set<(item: DownloadItem) => void>();
 
   constructor(opts: YtDlpEngineOptions) {
@@ -172,15 +182,29 @@ export class YtDlpEngine implements Engine {
     // Every download works in its own staging folder, so two downloads of the same URL can never
     // write the same .part file. The finished file is moved into place under a free name.
     const staging = path.join(destination, `${STAGING_PREFIX}${id}`);
-    await fs.mkdir(staging, { recursive: true });
-
-    const args = [
-      ...(this.opts.ytdlpArgsPrefix ?? []),
-      '--ffmpeg-location',
-      this.opts.ffmpegPath,
-      ...buildArgs(url, preset, staging),
-    ];
-    const child = spawn(this.opts.ytdlpPath, args, { shell: false, windowsHide: true });
+    let child: ChildProcessByStdio<null, Readable, Readable>;
+    try {
+      await this.sweepStale(destination);
+      await fs.mkdir(staging, { recursive: true });
+      const args = [
+        ...(this.opts.ytdlpArgsPrefix ?? []),
+        '--ffmpeg-location',
+        this.opts.ffmpegPath,
+        ...buildArgs(url, preset, staging),
+      ];
+      child = spawn(this.opts.ytdlpPath, args, {
+        shell: false,
+        windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
+      });
+    } catch (e) {
+      await rmStaging(staging).catch(() => undefined);
+      const code = (e as NodeJS.ErrnoException)?.code;
+      throw {
+        code: code === 'ENOSPC' ? 'disk' : 'unknown',
+        message: e instanceof Error ? e.message : String(e),
+      } satisfies EngineError;
+    }
 
     const item: DownloadItem = {
       id, url, title: url, preset, state: 'queued', percent: 0,
@@ -191,14 +215,14 @@ export class YtDlpEngine implements Engine {
       exitedResolve = r;
     });
     const job: Job = {
-      item, staging, destination, pid: child.pid, cancelled: false, finished: false, exited,
+      item, staging, destination, pid: child.pid, cancelled: false, completing: false, finished: false, exited,
       kill: () => this.killTree(child.pid, () => child.kill()),
     };
     this.jobs.set(id, job);
 
     let stderr = '';
     child.stderr.on('data', (d: Buffer) => {
-      if (stderr.length < STDERR_CAP) stderr += d.toString('utf8');
+      stderr = (stderr + d.toString('utf8')).slice(-STDERR_CAP);
     });
     let buf = '';
     child.stdout.on('data', (d: Buffer) => {
@@ -229,8 +253,10 @@ export class YtDlpEngine implements Engine {
       settle(async () => {
         if (buf) this.onLine(job, buf);
         if (job.cancelled) return;
-        if (code === 0) await this.complete(job);
-        else {
+        if (code === 0) {
+          job.completing = true;
+          await this.complete(job);
+        } else {
           await rmStaging(staging);
           this.fail(job, errorFromStderr(stderr));
         }
@@ -241,11 +267,12 @@ export class YtDlpEngine implements Engine {
 
   async cancel(id: string): Promise<void> {
     const job = this.jobs.get(id);
-    if (!job || job.finished || job.cancelled) return;
+    if (!job || job.finished || job.cancelled || job.completing) return;
     job.cancelled = true;
     await job.kill();
     await Promise.race([job.exited, new Promise((r) => setTimeout(r, 5000))]);
     await rmStaging(job.staging);
+    if (job.finished) return;
     job.finished = true;
     this.update(job, { state: 'cancelled', speedBps: null, etaSec: null });
   }
@@ -273,6 +300,24 @@ export class YtDlpEngine implements Engine {
   /** Process id of a download's yt-dlp child, if known. */
   pidOf(id: string): number | undefined {
     return this.jobs.get(id)?.pid;
+  }
+
+  /** Removes `.eqdl-*` folders left behind by crashed runs, once per destination per engine. */
+  private async sweepStale(destination: string): Promise<void> {
+    const key = path.resolve(destination);
+    if (this.swept.has(key)) return;
+    this.swept.add(key);
+    let names: string[];
+    try {
+      names = await fs.readdir(key);
+    } catch {
+      return;
+    }
+    await Promise.all(
+      names
+        .filter((n) => n.startsWith(STAGING_PREFIX))
+        .map((n) => rmStaging(path.join(key, n)).catch(() => undefined)),
+    );
   }
 
   private onLine(job: Job, line: string): void {
@@ -334,6 +379,7 @@ export class YtDlpEngine implements Engine {
       const child = spawn(this.opts.ytdlpPath, [...(this.opts.ytdlpArgsPrefix ?? []), ...args], {
         shell: false,
         windowsHide: true,
+        stdio: ['ignore', 'pipe', 'pipe'],
       });
       let stdout = '';
       let stderr = '';
@@ -341,7 +387,7 @@ export class YtDlpEngine implements Engine {
         stdout += d.toString('utf8');
       });
       child.stderr.on('data', (d: Buffer) => {
-        if (stderr.length < STDERR_CAP) stderr += d.toString('utf8');
+        stderr = (stderr + d.toString('utf8')).slice(-STDERR_CAP);
       });
       child.once('error', (e) => reject({ code: 'unknown', message: e.message } satisfies EngineError));
       child.once('close', (code) => resolve({ code, stdout, stderr }));

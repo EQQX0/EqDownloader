@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DownloadItem, EngineError } from '@eq/ui/engine';
 import { runEngineContract } from '@eq/ui/engine/contract';
 import { buildArgs, mapStderr, parseProgressLine, YtDlpEngine } from './ytdlp';
@@ -17,24 +17,6 @@ function makeEngine(extra: Partial<ConstructorParameters<typeof YtDlpEngine>[0]>
     ...extra,
   });
 }
-
-// The shared contract downloads into '/tmp' (C:\tmp on Windows); remove what it leaves behind.
-const CONTRACT_DEST = path.resolve('/tmp');
-let contractDestExisted = true;
-beforeAll(() => {
-  contractDestExisted = fs.existsSync(CONTRACT_DEST);
-});
-afterAll(() => {
-  if (!contractDestExisted) {
-    fs.rmSync(CONTRACT_DEST, { recursive: true, force: true });
-    return;
-  }
-  for (const n of fs.readdirSync(CONTRACT_DEST)) {
-    if (n.startsWith('Fake video [abc123]') || n.startsWith('.eqdl-')) {
-      fs.rmSync(path.join(CONTRACT_DEST, n), { recursive: true, force: true });
-    }
-  }
-});
 
 runEngineContract('YtDlpEngine (fake yt-dlp)', () => makeEngine());
 
@@ -61,6 +43,12 @@ describe('parseProgressLine', () => {
 
   it('accepts float speed and eta', () => {
     expect(parseProgressLine('download: 10.0%|1500.5|3.0')).toEqual({ percent: 10, speedBps: 1500.5, etaSec: 3 });
+  });
+
+  it('parses the bare form real yt-dlp prints (no download: prefix)', () => {
+    expect(parseProgressLine(' 17.4%|220664416.67|0')).toEqual({ percent: 17.4, speedBps: 220664416.67, etaSec: 0 });
+    expect(parseProgressLine('  0.0%|NA|NA')).toEqual({ percent: 0, speedBps: null, etaSec: null });
+    expect(parseProgressLine('100.0%|None|None')).toEqual({ percent: 100, speedBps: null, etaSec: null });
   });
 
   it('returns null for non-progress and garbage lines', () => {
@@ -236,6 +224,41 @@ describe('YtDlpEngine behaviour', () => {
     const item = await p;
     expect([...path.basename(item.filePath!, '.mp4')].length).toBeLessThanOrEqual(120);
     expect(fs.existsSync(item.filePath!)).toBe(true);
+  });
+
+  it('sweeps stale .eqdl-* folders from a destination on first start only', async () => {
+    const stale = path.join(dir, '.eqdl-crashed');
+    fs.mkdirSync(stale);
+    fs.writeFileSync(path.join(stale, 'x.part'), 'p');
+    fs.writeFileSync(path.join(dir, 'keep.txt'), 'k');
+    const e = makeEngine();
+    const p = waitFor(e, (i) => i.state === 'done');
+    await e.start('https://example.test/v', 'best', dir);
+    await p;
+    expect(fs.existsSync(stale)).toBe(false);
+    expect(fs.existsSync(path.join(dir, 'keep.txt'))).toBe(true);
+  });
+
+  it('start surfaces an EngineError when the destination cannot be created', async () => {
+    const blocker = path.join(dir, 'file');
+    fs.writeFileSync(blocker, 'x');
+    const err = (await makeEngine()
+      .start('https://example.test/v', 'best', path.join(blocker, 'sub'))
+      .then(() => null, (e: unknown) => e)) as EngineError;
+    expect(err.code).toBe('unknown');
+    expect(typeof err.message).toBe('string');
+  });
+
+  it('cancel after completion started does not emit cancelled', async () => {
+    const e = makeEngine();
+    const seen: string[] = [];
+    e.onProgress((i) => seen.push(i.state));
+    const p = waitFor(e, (i) => i.state === 'done');
+    const id = await e.start('https://example.test/v?steps=1&stepms=0', 'best', dir);
+    await p;
+    await e.cancel(id);
+    expect(seen).not.toContain('cancelled');
+    expect((await e.list())[0]!.state).toBe('done');
   });
 
   it('updateEngine uses the injected updater', async () => {

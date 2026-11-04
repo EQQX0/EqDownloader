@@ -1,8 +1,19 @@
-import { describe, expect, it } from 'vitest';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import type { DownloadItem, Engine, EngineError } from './types';
 
 export function runEngineContract(name: string, make: () => Engine): void {
   describe(`Engine contract: ${name}`, () => {
+    let dest = '';
+    beforeEach(() => {
+      dest = fs.mkdtempSync(path.join(os.tmpdir(), 'eq-'));
+    });
+    afterEach(() => {
+      fs.rmSync(dest, { recursive: true, force: true, maxRetries: 10, retryDelay: 100 });
+    });
+
     it('probe returns a title and at least one format', async () => {
       const r = await make().probe('https://example.test/v');
       expect(r.title.length).toBeGreaterThan(0);
@@ -19,7 +30,7 @@ export function runEngineContract(name: string, make: () => Engine): void {
 
     it('start returns an id that appears in list()', async () => {
       const e = make();
-      const id = await e.start('https://example.test/v', 'best', '/tmp');
+      const id = await e.start('https://example.test/v', 'best', dest);
       expect((await e.list()).some((i) => i.id === id)).toBe(true);
     });
 
@@ -32,7 +43,7 @@ export function runEngineContract(name: string, make: () => Engine): void {
           if (i.state === 'done') resolve();
         });
       });
-      await e.start('https://example.test/v', '720p', '/tmp');
+      await e.start('https://example.test/v', '720p', dest);
       await done;
       const last = events[events.length - 1]!;
       expect(last.state).toBe('done');
@@ -48,7 +59,7 @@ export function runEngineContract(name: string, make: () => Engine): void {
       e.onProgress((i) => {
         if (i.state === 'running') running();
       });
-      const id = await e.start('https://example.test/v', 'mp3', '/tmp');
+      const id = await e.start('https://example.test/v', 'mp3', dest);
       await sawRunning;
       await e.cancel(id);
       const item = (await e.list()).find((i) => i.id === id);
