@@ -1,0 +1,12 @@
+node_modules/
+dist/
+build/
+.superpowers/
+.taste-skill/
+android/.gradle/
+android/app/build/
+android/local.properties
+*.jks
+*.keystore
+playwright-report/
+test-results/
