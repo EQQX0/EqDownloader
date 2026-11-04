@@ -16,3 +16,18 @@ describe('resolveBinaries', () => {
     });
   });
 });
+
+describe('resolveBinaries user data preference', () => {
+  const base = { packaged: true, resourcesPath: 'C:/app/resources', platform: 'win32' as const };
+
+  it('prefers the updated yt-dlp in user data when it exists', () => {
+    const r = resolveBinaries({ ...base, userDataDir: 'C:/ud', exists: (p) => p === path.join('C:/ud', 'yt-dlp.exe') });
+    expect(r.ytdlpPath).toBe(path.join('C:/ud', 'yt-dlp.exe'));
+    expect(r.ffmpegPath).toBe(path.join('C:/app/resources', 'bin', 'ffmpeg.exe'));
+  });
+
+  it('uses the bundled copy when the user data copy is absent', () => {
+    const r = resolveBinaries({ ...base, userDataDir: 'C:/ud', exists: () => false });
+    expect(r.ytdlpPath).toBe(path.join('C:/app/resources', 'bin', 'yt-dlp.exe'));
+  });
+});

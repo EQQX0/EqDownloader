@@ -5,14 +5,23 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "build": "node scripts/build.mjs",
+    "fetch-binaries": "node scripts/fetch-binaries.mjs",
+    "dist": "node scripts/build.mjs && node scripts/fetch-binaries.mjs && electron-builder --win portable --x64"
   },
   "dependencies": {
     "@eq/ui": "*"
   },
   "devDependencies": {
     "@types/node": "^24.0.0",
+    "electron": "45.2.2",
+    "electron-builder": "^26.18.0",
+    "esbuild": "^0.25.12",
     "typescript": "^5.6.0",
     "vitest": "^3.0.0"
-  }
+  },
+  "main": "out/main.cjs",
+  "description": "EqDownload desktop app",
+  "author": "EQQX0"
 }

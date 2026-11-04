@@ -1,0 +1,26 @@
+appId: app.eqdownload.desktop
+productName: EqDownload
+directories:
+  output: release
+files:
+  - out/**
+  - src/renderer/fallback.html
+  - package.json
+win:
+  target:
+    - target: portable
+      arch: x64
+  signAndEditExecutable: false
+  forceCodeSigning: false
+portable:
+  artifactName: EqDownload.exe
+extraResources:
+  - from: resources/bin
+    to: bin
+    filter:
+      - yt-dlp.exe
+      - ffmpeg.exe
+  - from: ../ui/dist
+    to: ui
+    filter:
+      - "**/*"

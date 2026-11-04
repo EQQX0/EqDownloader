@@ -10,3 +10,6 @@ android/local.properties
 *.keystore
 playwright-report/
 test-results/
+desktop/resources/bin/
+desktop/release/
+desktop/out/
