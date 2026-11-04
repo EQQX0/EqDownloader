@@ -3,7 +3,11 @@ import type { Engine } from '../engine/types';
 import type { Screen } from './store';
 
 /** Engines that can read the clipboard (Android) implement this; others do not. */
-export type ClipboardCapable = Engine & { readClipboard?(): Promise<string> };
+export type ClipboardCapable = Engine & {
+  readClipboard?(): Promise<string>;
+  /** Android pushes the clipboard text itself when the app gains focus, the one moment Android allows the read. */
+  onClipboard?(handler: (text: string) => void): () => void;
+};
 
 /** The slice of Document this needs, so tests can pass a stand-in. */
 export type DocLike = Pick<Document, 'addEventListener' | 'removeEventListener' | 'visibilityState' | 'defaultView'>;
@@ -32,19 +36,23 @@ interface Target {
  * Each distinct link is offered once, so clearing the result does not bring it back. Returns an unsubscribe.
  */
 export function wireClipboard(engine: ClipboardCapable, store: Target, doc: DocLike = document): () => void {
+  let last: string | null = null;
+  const offer = (text: string): void => {
+    const url = wantedClipboardLink(text);
+    if (!url || url === last) return;
+    last = url;
+    store.go('home');
+    void store.submitLink(url);
+  };
+  if (typeof engine.onClipboard === 'function') return engine.onClipboard(offer);
   if (typeof engine.readClipboard !== 'function') return () => {};
   const read = engine.readClipboard.bind(engine);
-  let last: string | null = null;
   let busy = false;
   const look = async (): Promise<void> => {
     if (busy || doc.visibilityState === 'hidden') return;
     busy = true;
     try {
-      const url = wantedClipboardLink(await read());
-      if (!url || url === last) return;
-      last = url;
-      store.go('home');
-      void store.submitLink(url);
+      offer(await read());
     } finally {
       busy = false;
     }

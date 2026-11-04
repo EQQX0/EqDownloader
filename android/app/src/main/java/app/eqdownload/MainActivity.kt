@@ -19,6 +19,12 @@ class MainActivity : BridgeActivity() {
         if (savedInstanceState == null) forwardShare(intent)
     }
 
+    /** The clipboard can only be read while this window has focus, so the app looks exactly then. */
+    override fun onWindowFocusChanged(hasFocus: Boolean) {
+        super.onWindowFocusChanged(hasFocus)
+        if (hasFocus) (bridge?.getPlugin("EqEngine")?.instance as? EqEnginePlugin)?.emitClipboard()
+    }
+
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         forwardShare(intent)

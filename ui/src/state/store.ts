@@ -249,6 +249,20 @@ export function createStore(engine: Engine, host: Host = {}): Store {
 
   let probeSeq = 0;
 
+  // A name and picture can arrive after the user already pressed Download. They still go into that download,
+  // whether or not the result card is shown any more.
+  const applyMeta = (url: string, title: string, thumbnail: string | null): void => {
+    let touched = false;
+    for (const i of state.items) {
+      if (i.url !== url) continue;
+      const cur = titles.get(i.id);
+      if (title && (!cur || cur === url)) titles.set(i.id, title);
+      if (thumbnail && !thumbs.has(i.id)) thumbs.set(i.id, thumbnail);
+      touched = true;
+    }
+    if (touched) set({ items: state.items.map(withTitle) });
+  };
+
   async function begin(url: string, preset: Preset, title: string | null, thumbnail: string | null = null): Promise<void> {
     await ready;
     try {
@@ -301,6 +315,23 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       // Show the quality buttons at once with the link as the title; the real title and picture fill in when yt-dlp answers.
       set({ error: null, probe: { url, title: url, thumbnail: null, durationSec: null, formats: [] }, probing: true });
       try {
+        // Title and picture from the site's own quick lookup (a fraction of a second) when the engine has one;
+        // the full yt-dlp check only runs when that gives nothing.
+        const quick = (engine as Engine & { quickInfo?(url: string): Promise<{ title: string; thumbnail: string | null }> }).quickInfo;
+        if (typeof quick === 'function') {
+          try {
+            const q = await quick.call(engine, url);
+            if (q.title) {
+              applyMeta(url, q.title, q.thumbnail ?? null);
+              if (seq === probeSeq) {
+                set({ probe: { url, title: q.title, thumbnail: q.thumbnail ?? null, durationSec: null, formats: [] }, probing: false });
+              }
+              return;
+            }
+          } catch {
+            // No quick answer for this site: do the full check below.
+          }
+        }
         let probe;
         try {
           probe = await engine.probe(url);
@@ -308,6 +339,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
           if (asEngineError(first).code !== 'outdated' || !(await autoUpdate())) throw first;
           probe = await engine.probe(url);
         }
+        applyMeta(url, probe.title, probe.thumbnail ?? null);
         if (seq === probeSeq) set({ probe, probing: false });
       } catch (e) {
         if (seq === probeSeq) {

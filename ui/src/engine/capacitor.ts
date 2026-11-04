@@ -12,8 +12,10 @@ export interface EqEnginePlugin {
   checkAppUpdate(): Promise<{ version: string | null }>;
   installAppUpdate(): Promise<{ version: string }>;
   readClipboard(): Promise<{ text: string }>;
+  quickInfo(opts: { url: string }): Promise<{ title: string; thumbnail: string | null }>;
   openSupport(): Promise<void>;
   addListener(event: 'progress', cb: (item: DownloadItem) => void): Promise<PluginListenerHandle>;
+  addListener(event: 'clipboard', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
   addListener(event: 'share', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
 }
 
@@ -103,6 +105,16 @@ export class CapacitorEngine implements Engine {
 
   openSupport(): Promise<void> {
     return call(this.plugin.openSupport());
+  }
+
+  /** Title and picture from the site's own lookup (oEmbed), for YouTube and TikTok. Rejects for other sites. */
+  quickInfo(url: string): Promise<{ title: string; thumbnail: string | null }> {
+    return call(this.plugin.quickInfo({ url }));
+  }
+
+  /** The app reports a clipboard link by itself when it gains focus, the only moment Android lets it read it. */
+  onClipboard(handler: (text: string) => void): () => void {
+    return listen<{ text: string }>((cb) => this.plugin.addListener('clipboard', cb), (d) => handler(d.text));
   }
 
   /** The clipboard text, read natively because a web view is not allowed to read it without a prompt. */

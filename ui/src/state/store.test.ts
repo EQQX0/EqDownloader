@@ -493,3 +493,59 @@ describe('speed and timing', () => {
     expect(store.state.library[0]?.tookMs).toBe(done.tookMs);
   });
 });
+
+describe('quick link info', () => {
+  class QuickEngine extends TestEngine {
+    quick: { title: string; thumbnail: string | null } | null = { title: 'Quick title', thumbnail: 'https://img.test/t.jpg' };
+    async quickInfo(): Promise<{ title: string; thumbnail: string | null }> {
+      if (!this.quick) throw new Error('none');
+      return this.quick;
+    }
+  }
+
+  it('uses the quick title and picture and skips the slow check', async () => {
+    const engine = new QuickEngine();
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    await store.submitLink('https://youtu.be/abc');
+    expect(store.state.probe?.title).toBe('Quick title');
+    expect(store.state.probe?.thumbnail).toBe('https://img.test/t.jpg');
+    expect(store.state.probing).toBe(false);
+    expect(engine.probeCalls).toEqual([]);
+  });
+
+  it('falls back to the full check when there is no quick answer', async () => {
+    const engine = new QuickEngine();
+    engine.quick = null;
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    await store.submitLink('https://www.instagram.com/p/x/');
+    expect(engine.probeCalls).toEqual(['https://www.instagram.com/p/x/']);
+    expect(store.state.probe?.title).toBe('Probe title');
+  });
+});
+
+describe('late title and picture', () => {
+  it('fills them into a download that was started before they arrived', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    class SlowQuick extends TestEngine {
+      async quickInfo(): Promise<{ title: string; thumbnail: string | null }> {
+        await gate;
+        return { title: 'Real title', thumbnail: 'https://img.test/t.jpg' };
+      }
+    }
+    const engine = new SlowQuick();
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    const pending = store.submitLink('https://youtu.be/abc');
+    await store.startDownload('best'); // pressed before the name arrived
+    expect(store.state.items[0]?.title).toBe('https://youtu.be/abc');
+    release();
+    await pending;
+    await Promise.resolve();
+    expect(store.state.items[0]?.title).toBe('Real title');
+    expect(store.state.items[0]?.thumbnail).toBe('https://img.test/t.jpg');
+    expect(store.state.probe).toBeNull(); // the late answer does not bring the result card back
+  });
+});

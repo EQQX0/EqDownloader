@@ -85,6 +85,24 @@ class EqEnginePlugin : Plugin() {
         }
     }
 
+    /** Title and picture from the site's own oEmbed lookup: much faster than a full yt-dlp check. YouTube and TikTok only. */
+    @PluginMethod
+    fun quickInfo(call: PluginCall) {
+        val url = try {
+            UrlGuard.requireHttpUrl(call.getString("url"))
+        } catch (e: Throwable) {
+            return reject(call, e)
+        }
+        pool.execute {
+            try {
+                val info = QuickInfo.fetch(url) ?: throw EngineException("unsupported", "No quick lookup for this site.")
+                call.resolve(JSObject().put("title", info.title).put("thumbnail", info.thumbnail ?: JSONObject.NULL))
+            } catch (e: Throwable) {
+                reject(call, e)
+            }
+        }
+    }
+
     @PluginMethod
     fun start(call: PluginCall) {
         // Validate before asking for anything.
@@ -233,9 +251,37 @@ class EqEnginePlugin : Plugin() {
         }
     }
 
+    private var lastClipboard: String? = null
+
+    /**
+     * Called by MainActivity when the window gains focus, the moment Android allows reading the clipboard.
+     * Only text that starts with one of the supported links is passed to the web layer, and each is passed once.
+     */
+    fun emitClipboard() {
+        val text = try {
+            val cm = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+            cm.primaryClip?.takeIf { it.itemCount > 0 }?.getItemAt(0)?.coerceToText(context)?.toString()?.trim().orEmpty()
+        } catch (e: Throwable) {
+            ""
+        }
+        if (text.isEmpty() || text == lastClipboard || CLIPBOARD_PREFIXES.none { text.startsWith(it) }) return
+        lastClipboard = text
+        notifyListeners("clipboard", JSObject().put("text", text.take(2000)), true)
+    }
+
     /** Called by MainActivity for text shared from another app. Kept until the web view listens. */
     fun emitShare(text: String) {
         notifyListeners("share", JSObject().put("text", text), true)
+    }
+
+    private companion object {
+        val CLIPBOARD_PREFIXES = listOf(
+            "https://vt.tiktok.com/",
+            "https://www.instagram.com/",
+            "https://youtube.com/",
+            "https://youtu.be/",
+            "https://music.youtube.com/",
+        )
     }
 
     private fun reject(call: PluginCall, e: Throwable) {

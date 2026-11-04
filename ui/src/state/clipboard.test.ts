@@ -56,3 +56,38 @@ describe('wireClipboard', () => {
     expect(store.go).not.toHaveBeenCalled();
   });
 });
+
+describe('wireClipboard with a native clipboard event', () => {
+  function pushEngine() {
+    let handler: ((t: string) => void) | null = null;
+    const engine = Object.assign(new FakeEngine(), {
+      onClipboard(h: (t: string) => void) {
+        handler = h;
+        return () => { handler = null; };
+      },
+    }) as Engine;
+    return { engine, fire: (t: string) => handler?.(t), active: () => handler !== null };
+  }
+
+  it('checks a matching link the moment the app reports it, without polling', async () => {
+    const { engine, fire } = pushEngine();
+    const store = { submitLink: vi.fn(async () => {}), go: vi.fn() };
+    wireClipboard(engine, store, fakeDoc().doc);
+    fire('https://youtu.be/abc?si=1');
+    await flush();
+    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc?si=1');
+    expect(store.go).toHaveBeenCalledWith('home');
+  });
+
+  it('ignores other links and repeats, and unsubscribes', async () => {
+    const { engine, fire, active } = pushEngine();
+    const store = { submitLink: vi.fn(async () => {}), go: vi.fn() };
+    const off = wireClipboard(engine, store, fakeDoc().doc);
+    fire('https://example.com/v');
+    fire('https://youtu.be/abc');
+    fire('https://youtu.be/abc');
+    expect(store.submitLink).toHaveBeenCalledTimes(1);
+    off();
+    expect(active()).toBe(false);
+  });
+});
