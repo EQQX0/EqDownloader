@@ -17,7 +17,7 @@ from urllib.parse import parse_qs, quote, urlparse
 import yt_dlp
 
 MAX_BYTES = 80_000_000
-CHUNK = 64 * 1024
+CHUNK = 512 * 1024  # a thread hop per chunk: big chunks keep it fast
 
 
 def host_is_public(host: str) -> bool:

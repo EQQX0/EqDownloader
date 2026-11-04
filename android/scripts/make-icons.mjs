@@ -14,7 +14,7 @@ import { chromium } from '@playwright/test';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const glyphPath = join(here, '..', '..', 'design', 'icon-glyph.png');
-const markPath = join(here, '..', '..', 'design', 'icon-mark.png');
+const markPath = join(here, '..', '..', 'design', 'icon-fg.png');
 const GROUND = 'linear-gradient(180deg, #0F1A38 0%, #1B2848 55%, #2E4565 100%)'; // keep in sync with drawable/ic_launcher_background.xml
 const resDir = join(here, '..', 'app', 'src', 'main', 'res');
 
@@ -45,9 +45,9 @@ try {
     mkdirSync(dir, { recursive: true });
     const legacy = Math.round(48 * scale);
     const adaptive = Math.round(108 * scale);
-    writeFileSync(join(dir, 'ic_launcher_foreground.png'), await render(adaptive, { inner: 0.8, src: markUrl }));
-    writeFileSync(join(dir, 'ic_launcher.png'), await render(legacy, { inner: 0.84, src: markUrl, ground: GROUND, radius: '18%' }));
-    writeFileSync(join(dir, 'ic_launcher_round.png'), await render(legacy, { inner: 0.74, src: markUrl, ground: GROUND, radius: '50%' }));
+    writeFileSync(join(dir, 'ic_launcher_foreground.png'), await render(adaptive, { inner: 1, src: markUrl }));
+    writeFileSync(join(dir, 'ic_launcher.png'), await render(legacy, { inner: 1, src: markUrl, ground: GROUND, radius: '18%' }));
+    writeFileSync(join(dir, 'ic_launcher_round.png'), await render(legacy, { inner: 0.86, src: markUrl, ground: GROUND, radius: '50%' }));
     console.log(`mipmap-${name}: foreground ${adaptive}px, legacy ${legacy}px`);
   }
 } finally {

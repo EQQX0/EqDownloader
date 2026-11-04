@@ -14,15 +14,21 @@ const src = readFileSync(join(root, 'design', 'icon.svg'), 'utf8');
 // Keep the fonts, gradients and the glyph; replace the tile frame with one full-bleed gradient rectangle.
 const head = src.slice(0, src.indexOf('</defs>'));
 const glyph = src.slice(src.indexOf('<g filter='), src.lastIndexOf('</svg>'));
+const stars = src.slice(src.indexOf('<circle'), src.indexOf('<g filter='));
 const GROUND = '<linearGradient id="full" gradientUnits="userSpaceOnUse" x1="0" y1="14" x2="0" y2="386"><stop offset="0" stop-color="#0B132B"/><stop offset=".55" stop-color="#1C2541"/><stop offset="1" stop-color="#3A506B"/></linearGradient>';
 function variant(side, cx = 205, cy = 213) {
   const vb = `${cx - side / 2} ${cy - side / 2} ${side} ${side}`;
   const open = head.replace(/<svg[^>]*>/, `<svg viewBox="${vb}" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">`);
-  return `${open}${GROUND}</defs><rect x="-2000" y="-2000" width="4000" height="4000" fill="url(#full)"/>${glyph}</svg>`;
+  return `${open}${GROUND}</defs><rect x="-2000" y="-2000" width="4000" height="4000" fill="url(#full)"/>${stars}${glyph}</svg>`;
 }
 function markOnly() {
   const open = head.replace(/<svg[^>]*>/, '<svg viewBox="82 74 246 270" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">');
   return `${open}</defs>${glyph}</svg>`;
+}
+// Android adaptive foreground: stars and glyph on transparent, sized so the Eq stays inside the launcher's safe zone.
+function foreground() {
+  const open = head.replace(/<svg[^>]*>/, '<svg viewBox="20 28 370 370" xmlns="http://www.w3.org/2000/svg" width="1024" height="1024">');
+  return `${open}</defs>${stars}${glyph}</svg>`;
 }
 const VARIANTS = { 'icon-glyph': variant(278), 'icon-adaptive': variant(330) };
 
@@ -36,6 +42,12 @@ try {
     await page.waitForTimeout(300);
     writeFileSync(join(root, 'design', `${name}.png`), await page.screenshot({ type: 'png' }));
   }
+  const fg = foreground();
+  writeFileSync(join(root, 'design', 'icon-fg.svg'), fg);
+  await page.setContent(`<!doctype html><body style="margin:0;background:transparent">${fg}</body>`);
+  await page.evaluate(() => document.fonts.ready);
+  await page.waitForTimeout(300);
+  writeFileSync(join(root, 'design', 'icon-fg.png'), await page.screenshot({ type: 'png', omitBackground: true }));
   // The transparent mark used as a watermark behind the site and the app.
   const mark = markOnly();
   writeFileSync(join(root, 'design', 'icon-mark.svg'), mark);
