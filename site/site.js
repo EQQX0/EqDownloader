@@ -243,8 +243,6 @@
       field.focus();
     });
   }
-  const preset = new URLSearchParams(location.search).get('url');
-  if (preset) { form.elements.url.value = preset; form.requestSubmit(); }
 
   // Web app: register the service worker and offer the browser's install prompt where it exists.
   if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
@@ -267,6 +265,20 @@
     if (installHint) { installHint.hidden = false; installHint.textContent = 'Installed, or open it from your apps'; }
   });
   window.addEventListener('appinstalled', () => { if (installBtn) installBtn.hidden = true; if (installHint) { installHint.hidden = false; installHint.textContent = 'Installed'; } });
+
+  // A link in the address (?url=... or ?text=...) is filled in and checked, so an iPhone Shortcut or any other app can
+  // send a link here. It must be the last thing in the address, because the link itself can contain & and ?.
+  (() => {
+    const m = /[?&](?:url|text)=(.*)$/.exec(location.search);
+    if (!m) return;
+    let raw = m[1];
+    try { raw = decodeURIComponent(raw.replace(/\+/g, ' ')); } catch { /* use it as it came */ }
+    const found = /https?:\/\/[^\s<>"']+/i.exec(raw);
+    history.replaceState(null, '', location.pathname + location.hash);
+    if (!found) return;
+    form.elements.url.value = found[0];
+    form.requestSubmit();
+  })();
 
   const items = document.querySelectorAll('[data-reveal]');
   items.forEach((el, i) => el.style.setProperty('--i', String(i % 4)));

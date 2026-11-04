@@ -38,6 +38,10 @@ Files go to your Downloads folder on Windows (change it in Settings) and to `Dow
 
 How fast you actually get depends on your internet and on the site. A site that limits every visitor, or a slow line, still caps it.
 
+## iPhone Shortcut
+
+The website accepts a link in its address: `https://eqdownload.vercel.app/?url=<link>`. The link must be last in the address. With the Shortcuts app you can add EqDownload to the Share sheet: make a shortcut that takes URLs and Text from the Share Sheet, with the action Text (`https://eqdownload.vercel.app/?url=` followed by Shortcut Input) and the action Open URLs. Sharing a link to it then opens the page with the link already checked. It uses the website, so the same site limits apply.
+
 ## Updating the app
 
 Settings shows the app version. Press Check for app update to ask GitHub for the newest release. Nothing checks by itself.
