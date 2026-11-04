@@ -3,13 +3,14 @@
 Some sites (TikTok) give media links that only work with cookies set while the page is read, so a browser
 cannot fetch them itself. This function reads the page the same way /api/probe does, then streams the chosen
 file through to the visitor. It is an ASGI app so the body streams instead of being buffered.
-Nothing is stored. Files over MAX_BYTES are refused, and every host is checked against private ranges.
+Nothing is stored. Files over MAX_BYTES are refused, and every host (and every redirect, and the address reached) is checked against private ranges.
 """
 import asyncio
 import ipaddress
 import json
 import re
 import socket
+import urllib.error
 import urllib.request
 from urllib.parse import parse_qs, quote, urlparse
 
@@ -53,7 +54,36 @@ def resolve(page_url: str, format_id: str):
         cookie = ydl.cookiejar.get_cookie_header(media)
         if cookie:
             headers['Cookie'] = cookie
-        return media, headers, info.get('title') or 'video', chosen.get('ext') or 'mp4'
+        return media, headers, info.get('title') or 'video', (re.fullmatch(r'[A-Za-z0-9]{1,5}', chosen.get('ext') or '') and chosen['ext']) or 'mp4'
+
+
+class SafeRedirect(urllib.request.HTTPRedirectHandler):
+    """Follow a redirect only when its target is also a public http(s) address."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        if not public_http_url(newurl):
+            raise urllib.error.URLError('redirect blocked')
+        new = super().redirect_request(req, fp, code, msg, headers, newurl)
+        if new is not None and urlparse(newurl).hostname != urlparse(req.full_url).hostname:
+            new.headers.pop('Cookie', None)  # never send a site's cookies to another host
+            new.unredirected_hdrs.pop('Cookie', None)
+        return new
+
+
+OPENER = urllib.request.build_opener(SafeRedirect)
+
+
+def open_media(media, headers):
+    resp = OPENER.open(urllib.request.Request(media, headers=headers), timeout=20)
+    # DNS can change between the check and the connect, so check the address actually reached too.
+    try:
+        peer = ipaddress.ip_address(resp.fp.raw._sock.getpeername()[0])
+        if peer.is_private or peer.is_loopback or peer.is_link_local or peer.is_multicast or peer.is_reserved or peer.is_unspecified:
+            resp.close()
+            raise PermissionError('peer')
+    except AttributeError:
+        pass
+    return resp
 
 
 def safe_name(title: str, ext: str) -> str:
@@ -83,7 +113,7 @@ async def app(scope, receive, send):
     except Exception:
         return await reply_json(send, 422, {'error': 'Could not read that link.'})
     try:
-        resp = await asyncio.to_thread(lambda: urllib.request.urlopen(urllib.request.Request(media, headers=headers), timeout=20))
+        resp = await asyncio.to_thread(open_media, media, headers)
     except Exception:
         return await reply_json(send, 502, {'error': 'The site refused the download.'})
     length = resp.headers.get('Content-Length')
@@ -107,7 +137,8 @@ async def app(scope, receive, send):
                 break
             sent += len(chunk)
             if sent > MAX_BYTES:
-                break
+                # Abort the connection so the browser sees a failed download, not a short file that looks complete.
+                raise RuntimeError('too large')
             await send({'type': 'http.response.body', 'body': chunk, 'more_body': True})
     finally:
         resp.close()

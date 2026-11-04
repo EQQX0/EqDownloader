@@ -33,6 +33,11 @@ jobs:
           packages: platform-tools platforms;android-36 build-tools;36.0.0
       - name: Install dependencies
         run: npm ci
+      - name: Site function tests
+        run: |
+          python3 -m venv .pyenv
+          .pyenv/bin/pip install -q yt-dlp==2026.10.26
+          .pyenv/bin/python -m unittest discover -s site/api -p "test_*.py"
       - name: Unit tests (workspaces)
         run: npm test
       - name: Install Playwright Chromium

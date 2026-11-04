@@ -57,8 +57,8 @@ Dated 2026-11-04.
   fails, because no other downloader has the sign in its name. **Pass.**
 - **The live thing** is the meter on Downloads. It runs on yt-dlp's real numbers. When a job is done,
   its two bars read as "=". A failed or cancelled job keeps both bars in the muted ink and says
-  Failed or Cancelled in words. The same two bars are the emblem in the header, the Done mark in
-  Library, the app icon (`design/icon.png`), and the bar under the current tab and the chosen preset.
+  Failed or Cancelled in words. The same two bars are the Done mark in
+  Library, the app icon (`design/icon.png`, the round logo, which also sits in the header), and the bar under the current tab and the chosen preset.
 - On a phone it is the same meter at full width. The percent sits beside it in the display face.
   With motion off, the bar stands at its value.
 
@@ -128,7 +128,6 @@ field and the error box carry a thick ink bar.
 - A new job draws its upper bar first.
 - Each screen name rises out of its own baseline (a masked line). The parts of the screen follow in
   reading order, 60-90ms apart. Lists arrive row by row.
-- The emblem draws its two bars on load.
 - Every control responds to press (scale 0.97), hover (one tone step, behind `hover: hover`) and
   focus (a 3px ink ring, offset 3px).
 - Under `prefers-reduced-motion: reduce`, the CSS drops all travel. Only 200ms fades remain, and the

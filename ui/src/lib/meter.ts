@@ -54,7 +54,7 @@ export function titleLength(text: string): 'short' | 'long' | 'very-long' {
   return n <= 40 ? 'short' : n <= 90 ? 'long' : 'very-long';
 }
 
-/** A small static equals mark (two equal bars), used as the emblem and as the Done mark. */
+/** A small static equals mark (two equal bars), used as the Done mark. */
 export function equalsMark(extraClass = ''): HTMLElement {
   return h(
     'span',

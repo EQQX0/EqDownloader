@@ -14,3 +14,5 @@ test-results/
 desktop/resources/bin/
 desktop/release/
 desktop/out/
+__pycache__/
+*.pyc

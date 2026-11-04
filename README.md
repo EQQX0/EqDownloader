@@ -1,6 +1,6 @@
 # EqDownload
 
-EqDownload saves video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own. The engine is yt-dlp.
+EqDownload saves video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own in the apps. The engine is yt-dlp. The website is a separate small service, described below.
 
 Website: https://eqdownload.vercel.app (paste a link and save from the browser, or get the apps).
 
@@ -16,7 +16,7 @@ Both files are on the [Releases page](../../releases). The repository is private
 
 Check the downloads against `SHA256SUMS.txt` on the release.
 
-**In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For TikTok, the file itself is streamed through that server (up to 80 MB), because TikTok's file links need cookies a browser cannot send.
+**In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For sites whose file links need cookies a browser cannot send (TikTok), the file itself is streamed through that server (up to 80 MB).
 
 ## Use
 
@@ -38,7 +38,7 @@ Some sites need a login, an age check, or a different region. EqDownload shows t
 
 - No analytics, ads, crash reporting or accounts.
 - The app contacts the sites you ask for. When you press Update engine, it also contacts `api.github.com`, `github.com` and GitHub's release asset hosts. Nothing else.
-- The Android app asks for four permissions: internet, foreground service, foreground service data sync, and notifications. A unit test fails the build if the manifest gains another.
+- The Android app asks for four permissions: internet, foreground service, foreground service data sync, and notifications. A unit test fails the build if the manifest gains another. (The merged APK also carries one app-private permission that Android adds for broadcast receivers; it exposes nothing to other apps.)
 - The Windows window runs with context isolation, no Node access and a Content-Security-Policy that blocks remote scripts.
 - Android turns cleartext HTTP off and upgrades `http://` links to `https://` before they reach yt-dlp. This is partial protection: yt-dlp runs as its own process, so it may still follow a redirect to an `http://` address.
 

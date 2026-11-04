@@ -79,7 +79,7 @@ def pick_formats(info, page_url, proxy):
     return out
 
 
-def probe(url: str, force_proxy: bool = False):
+def probe(url: str):
     opts = {
         'quiet': True,
         'no_warnings': True,
@@ -94,7 +94,7 @@ def probe(url: str, force_proxy: bool = False):
         info = ydl.extract_info(url, download=False)
         # Sites that set cookies while the page is read (TikTok) give media links a browser cannot fetch alone,
         # so those files are streamed through /api/dl, which carries the cookies.
-        proxy = force_proxy or any(True for _ in ydl.cookiejar)
+        proxy = any(True for _ in ydl.cookiejar)
     formats = pick_formats(info, url, proxy)
     return {
         'title': info.get('title') or 'Untitled',
@@ -109,7 +109,7 @@ def explain(err: str) -> str:
     low = err.lower()
     if 'sign in to confirm' in low or 'not a bot' in low:
         return 'This site blocks the server this page runs on with a bot check. Use the Windows or Android app on your own connection.'
-    if 'login' in low or 'private' in low or 'age' in low and 'restricted' in low:
+    if 'login' in low or 'private' in low or ('age' in low and 'restricted' in low):
         return 'This video needs a login, is private, or is age restricted.'
     if 'unsupported url' in low:
         return 'This site is not supported.'
@@ -134,9 +134,10 @@ class handler(BaseHTTPRequestHandler):
         if bad:
             return self._send(400, {'error': bad})
         try:
-            result = probe(url, force_proxy=(parse_qs(urlparse(self.path).query).get('proxy') or [''])[0] == '1')
+            result = probe(url)
         except yt_dlp.utils.DownloadError as e:
-            return self._send(422, {'error': explain(str(e)), 'detail': str(e)[:240]})
+            msg = explain(str(e))
+            return self._send(422, {'error': msg, 'blocked': msg.startswith('This site blocks')})
         except Exception:
             return self._send(500, {'error': 'Could not read that link.'})
         if not result['formats']:
