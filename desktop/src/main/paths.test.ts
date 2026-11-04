@@ -13,6 +13,7 @@ describe('resolveBinaries', () => {
     expect(resolveBinaries({ packaged: false, platform: 'win32' })).toEqual({
       ytdlpPath: 'yt-dlp',
       ffmpegPath: 'ffmpeg',
+      aria2cPath: 'aria2c',
     });
   });
 });

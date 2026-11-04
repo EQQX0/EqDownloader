@@ -54,5 +54,30 @@ class Redirects(unittest.TestCase):
         self.assertEqual(dl.safe_name(r'a/b\c:d', 'mp4'), 'abcd.mp4')
 
 
+
+
+class Ranges(unittest.TestCase):
+    def run_dl(self, query):
+        import asyncio
+        sent = []
+
+        async def send(m):
+            sent.append(m)
+
+        scope = {'type': 'http', 'query_string': query.encode()}
+        asyncio.run(dl.app(scope, None, send))
+        return sent[0]['status']
+
+    def test_bad_range_is_refused_before_any_lookup(self):
+        orig, orig_pub = dl.resolve, dl.public_http_url
+        dl.resolve = lambda *a: ('https://example.com/v.mp4', {}, 't', 'mp4')
+        dl.public_http_url = lambda u: True
+        try:
+            self.assertEqual(self.run_dl('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=abc'), 400)
+            self.assertEqual(self.run_dl('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=9-1'), 400)
+        finally:
+            dl.resolve, dl.public_http_url = orig, orig_pub
+
+
 if __name__ == '__main__':
     unittest.main()

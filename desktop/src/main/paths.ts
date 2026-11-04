@@ -4,6 +4,7 @@ import path from 'node:path';
 export interface Binaries {
   ytdlpPath: string;
   ffmpegPath: string;
+  aria2cPath: string;
 }
 
 export interface ResolveOptions {
@@ -28,11 +29,12 @@ export function resolveBinaries(opts: ResolveOptions = {}): Binaries {
   const exists = opts.exists ?? existsSync;
   const updated = opts.userDataDir ? path.join(opts.userDataDir, `yt-dlp${exe}`) : null;
   const preferUpdated = updated !== null && exists(updated);
-  if (!packaged) return { ytdlpPath: preferUpdated ? updated : 'yt-dlp', ffmpegPath: 'ffmpeg' };
+  if (!packaged) return { ytdlpPath: preferUpdated ? updated : 'yt-dlp', ffmpegPath: 'ffmpeg', aria2cPath: 'aria2c' };
   const resources =
     opts.resourcesPath ?? (process as NodeJS.Process & { resourcesPath?: string }).resourcesPath ?? '';
   return {
     ytdlpPath: preferUpdated ? updated : path.join(resources, 'bin', `yt-dlp${exe}`),
     ffmpegPath: path.join(resources, 'bin', `ffmpeg${exe}`),
+    aria2cPath: path.join(resources, 'bin', `aria2c${exe}`),
   };
 }

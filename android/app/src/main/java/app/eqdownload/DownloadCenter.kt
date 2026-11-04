@@ -1,6 +1,7 @@
 package app.eqdownload
 
 import android.content.Context
+import com.yausername.aria2c.Aria2c
 import com.yausername.ffmpeg.FFmpeg
 import com.yausername.youtubedl_android.YoutubeDL
 import com.yausername.youtubedl_android.YoutubeDLRequest
@@ -207,11 +208,17 @@ class DownloadCore(private val backend: DownloadBackend) {
 
 /** Starts the bundled python and ffmpeg once. The first run unpacks them, which takes a few seconds. */
 object YtDlpRuntime {
+    /** True when the bundled aria2c started; downloads then use 8 parallel connections per file. */
+    @Volatile
+    var fastDownloads = false
+        private set
+
     @Synchronized
     fun ensure(context: Context) {
         val app = context.applicationContext
         YoutubeDL.getInstance().init(app)
         FFmpeg.getInstance().init(app)
+        fastDownloads = runCatching { Aria2c.getInstance().init(app) }.isSuccess
     }
 }
 
@@ -223,6 +230,10 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
     override fun execute(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit) {
         val request = YoutubeDLRequest(spec.url)
         for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
+        if (YtDlpRuntime.fastDownloads) {
+            request.addOption("--downloader", "libaria2c.so")
+            request.addOption("--downloader-args", "aria2c:-x 8 -s 8 -k 1M")
+        }
         request.addCommands(listOf("--")) // the library puts the url after this
         try {
             YoutubeDL.getInstance().execute(request, id, false) { p, eta, line -> onProgress(p, eta, line) }

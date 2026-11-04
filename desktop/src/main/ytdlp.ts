@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs';
 import { spawn, type ChildProcessByStdio } from 'node:child_process';
 import type { Readable } from 'node:stream';
 import { randomUUID } from 'node:crypto';
@@ -28,6 +29,8 @@ const STAGING_PREFIX = '.eqdl-';
 export interface YtDlpEngineOptions {
   ytdlpPath: string;
   ffmpegPath: string;
+  /** aria2c, when it ships next to yt-dlp: downloads then use 8 parallel connections per file. Skipped if the file is missing. */
+  aria2cPath?: string;
   /** Fixed arguments placed before every yt-dlp argument (tests use it to run a Node script). */
   ytdlpArgsPrefix?: string[];
   /** Replaces the built-in `-U` self-update. Must resolve to the new version string. */
@@ -200,6 +203,9 @@ export class YtDlpEngine implements Engine {
         ...(this.opts.ytdlpArgsPrefix ?? []),
         '--ffmpeg-location',
         this.opts.ffmpegPath,
+        ...(this.opts.aria2cPath && existsSync(this.opts.aria2cPath)
+          ? ['--downloader', this.opts.aria2cPath, '--downloader-args', 'aria2c:-x 8 -s 8 -k 1M']
+          : []),
         ...buildArgs(url, preset, staging),
       ];
       child = spawn(this.opts.ytdlpPath, args, {

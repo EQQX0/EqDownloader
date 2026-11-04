@@ -55,6 +55,8 @@ dependencies {
     // yt-dlp for Android (maintained fork of yausername/youtubedl-android), pinned.
     implementation "io.github.junkfood02.youtubedl-android:library:$youtubedlAndroidVersion"
     implementation "io.github.junkfood02.youtubedl-android:ffmpeg:$youtubedlAndroidVersion"
+    // aria2c splits each file into parallel connections (the download-manager trick); optional at run time.
+    implementation "io.github.junkfood02.youtubedl-android:aria2c:$youtubedlAndroidVersion"
     // Already a dependency of Capacitor; MainActivity asks it whether the web view can run the bridge.
     implementation "androidx.webkit:webkit:$androidxWebkitVersion"
     testImplementation "junit:junit:$junitVersion"

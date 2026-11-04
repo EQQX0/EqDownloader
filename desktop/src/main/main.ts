@@ -25,6 +25,9 @@ function createEngine(): YtDlpEngine {
     get ffmpegPath() {
       return resolveBinaries(bundled).ffmpegPath;
     },
+    get aria2cPath() {
+      return resolveBinaries(bundled).aria2cPath;
+    },
     updater: () => updateYtDlp({ userDataDir }),
   };
   return new YtDlpEngine(opts);

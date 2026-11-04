@@ -62,6 +62,42 @@
     }
     return base + '-' + Date.now() + ext;
   };
+  // Four parallel range requests written into one file. Returns false (nothing written) when it does not apply.
+  const saveParallel = async (dir, a, name) => {
+    let total = 0;
+    try {
+      const probe = await fetch(a.href + '&r=0-0');
+      const m = /\/(\d+)$/.exec(probe.headers.get('Content-Range') || '');
+      if (probe.status !== 206 || !m) return false;
+      total = Number(m[1]);
+    } catch { return false; }
+    if (total < 8e6 || total > 80e6) return false;
+    const parts = 4, size = Math.ceil(total / parts);
+    const w = await (await dir.getFileHandle(await freeName(dir, name), { create: true })).createWritable();
+    let got = 0;
+    try {
+      await Promise.all(Array.from({ length: parts }, async (_, i) => {
+        const start = i * size, end = Math.min(total, start + size) - 1;
+        const res = await fetch(a.href + '&r=' + start + '-' + end);
+        if (res.status !== 206 || !res.body) throw new Error('range');
+        const r = res.body.getReader();
+        let pos = start;
+        for (;;) {
+          const { done, value } = await r.read();
+          if (done) break;
+          await w.write({ type: 'write', position: pos, data: value });
+          pos += value.length; got += value.length;
+          a.textContent = 'Saving ' + Math.round((got / total) * 100) + '%';
+        }
+        if (pos !== end + 1) throw new Error('short');
+      }));
+      await w.close();
+      return true;
+    } catch (e) {
+      try { await w.abort(); } catch { /* already closed */ }
+      throw e;
+    }
+  };
   const saveAs = async (ev, a, title, ext) => {
     ev.preventDefault();
     if (a.getAttribute('aria-busy')) return;
@@ -73,6 +109,8 @@
     a.setAttribute('aria-busy', 'true'); a.textContent = 'Saving...';
     let w;
     try {
+      // Download-manager style: when the site allows ranges and the file is big, fetch four slices at once.
+      if (await saveParallel(dir, a, name)) { a.textContent = 'Saved to ' + dir.name; return; }
       const res = await fetch(a.href);
       if (!res.ok || !res.body) throw new Error('bad');
       const total = Number(res.headers.get('Content-Length')) || 0;

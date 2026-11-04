@@ -112,10 +112,26 @@ async def app(scope, receive, send):
         return await reply_json(send, 422, {'error': 'That file is not available.'})
     except Exception:
         return await reply_json(send, 422, {'error': 'Could not read that link.'})
+    rng = (qs.get('r') or [''])[0]
+    if rng and not re.fullmatch(r'\d{1,9}-\d{1,9}', rng):
+        return await reply_json(send, 400, {'error': 'Bad range.'})
+    if rng:
+        a, b = (int(x) for x in rng.split('-'))
+        if b < a or b - a >= MAX_BYTES:
+            return await reply_json(send, 400, {'error': 'Bad range.'})
+        headers = {**headers, 'Range': f'bytes={a}-{b}'}
     try:
         resp = await asyncio.to_thread(open_media, media, headers)
     except Exception:
         return await reply_json(send, 502, {'error': 'The site refused the download.'})
+    crange = resp.headers.get('Content-Range') or ''
+    if rng and not (resp.status == 206 and re.fullmatch(r'bytes \d+-\d+/(\d+|\*)', crange)):
+        resp.close()  # the site does not do ranges: the page falls back to one connection
+        return await reply_json(send, 416, {'error': 'The site does not support ranges.'})
+    total = crange.rsplit('/', 1)[-1]
+    if rng and total.isdigit() and int(total) > MAX_BYTES:
+        resp.close()
+        return await reply_json(send, 413, {'error': 'That file is too large for this page. Use the app.'})
     length = resp.headers.get('Content-Length')
     if length and length.isdigit() and int(length) > MAX_BYTES:
         resp.close()
@@ -128,7 +144,9 @@ async def app(scope, receive, send):
     ]
     if length and length.isdigit():
         head.append((b'content-length', length.encode()))
-    await send({'type': 'http.response.start', 'status': 200, 'headers': head})
+    if rng:
+        head.append((b'content-range', crange.encode()))
+    await send({'type': 'http.response.start', 'status': 206 if rng else 200, 'headers': head})
     sent = 0
     try:
         while True:
