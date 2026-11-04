@@ -44,6 +44,7 @@ jobs:
           if ($p.ExitCode -ne 0) { throw "ui-check exited with $($p.ExitCode)" }
       - name: Download smoke test
         shell: pwsh
+        timeout-minutes: 5
         run: |
           $exe = (Resolve-Path desktop/release/EqDownload.exe).Path
           $out = Join-Path $env:RUNNER_TEMP 'smoke.out'
