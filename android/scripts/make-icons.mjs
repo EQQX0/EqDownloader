@@ -1,7 +1,7 @@
-// Builds the Android launcher icons from design/icon.png (the round logo on a transparent square).
+// Builds the Android launcher icons from design/icon.png (the logo on a transparent square).
 // Rasterises with the Chromium that @playwright/test already installs for the e2e suite (sharp is not a
 // dependency of this repo, same choice as desktop/scripts/make-icon.mjs). Output, per density:
-//   mipmap-<d>/ic_launcher_foreground.png   adaptive foreground (108dp canvas, the circle at 66% so no mask crops it)
+//   mipmap-<d>/ic_launcher_foreground.png   adaptive foreground (108dp canvas, the logo at 66% so no mask crops it)
 //   mipmap-<d>/ic_launcher.png              legacy square icon (48dp): the circle on the navy ground
 //   mipmap-<d>/ic_launcher_round.png        legacy round icon (48dp): the circle filling the canvas
 // The adaptive background is the colour resource ic_launcher_background (#0B132B, the logo's navy) and

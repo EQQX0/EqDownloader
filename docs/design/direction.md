@@ -58,7 +58,7 @@ Dated 2026-11-04.
 - **The live thing** is the meter on Downloads. It runs on yt-dlp's real numbers. When a job is done,
   its two bars read as "=". A failed or cancelled job keeps both bars in the muted ink and says
   Failed or Cancelled in words. The same two bars are the Done mark in
-  Library, the app icon (`design/icon.png`, the round logo, which also sits in the header), and the bar under the current tab and the chosen preset.
+  Library, the app icon (`design/icon.png`, the Eq logo, which also sits in the header), and the bar under the current tab and the chosen preset.
 - On a phone it is the same meter at full width. The percent sits beside it in the display face.
   With motion off, the bar stands at its value.
 
