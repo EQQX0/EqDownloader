@@ -47,6 +47,11 @@ export function buildArgs(url: string, preset: Preset, destination: string): str
     '--newline',
     '--no-colors',
     '--no-playlist',
+    // Fetch HLS/DASH fragments in parallel and in 10 MB ranges: much faster, and avoids per-connection throttling.
+    '-N',
+    '4',
+    '--http-chunk-size',
+    '10M',
     '--windows-filenames',
     '--progress-template',
     PROGRESS_TEMPLATE,

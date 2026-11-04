@@ -19,6 +19,9 @@ object YtDlpArgs {
             "--newline" to null,
             "--no-colors" to null,
             "--no-playlist" to null,
+            // Parallel fragments and 10 MB ranges: faster, and avoids per-connection throttling.
+            "-N" to "4",
+            "--http-chunk-size" to "10M",
             "--windows-filenames" to null,
             "-f" to spec.format,
             "-P" to outDir,
