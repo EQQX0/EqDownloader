@@ -144,6 +144,19 @@
       go.disabled = false;
     }
   });
+  // Paste button: reads the clipboard into the field. Browsers ask permission the first time; if they refuse, the field is focused.
+  const pasteBtn = document.getElementById('paste');
+  if (pasteBtn && navigator.clipboard && navigator.clipboard.readText) {
+    pasteBtn.hidden = false;
+    pasteBtn.addEventListener('click', async () => {
+      const field = form.elements.url;
+      try {
+        const text = (await navigator.clipboard.readText()).trim();
+        if (text) { field.value = text; }
+      } catch { /* permission refused: leave the field for a manual paste */ }
+      field.focus();
+    });
+  }
   const preset = new URLSearchParams(location.search).get('url');
   if (preset) { form.elements.url.value = preset; form.requestSubmit(); }
 

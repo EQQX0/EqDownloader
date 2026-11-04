@@ -65,6 +65,8 @@ a { color: inherit; }
 .finder input { flex: 1 1 14rem; min-height: var(--target); padding: 0 1rem; background: var(--surface); color: var(--ink); border: 0; border-radius: 0; font: 400 var(--body)/1.2 var(--font-text); -webkit-appearance: none; appearance: none; }
 .finder input::placeholder { color: var(--muted); }
 .finder .button { border: 0; font: 500 var(--body)/1 var(--font-text); cursor: pointer; }
+.finder .paste { background: var(--track); color: var(--ink); }
+.finder .paste[hidden] { display: none; }
 .result:empty { display: none; }
 .result { display: grid; gap: 1rem; }
 .result img { display: block; width: 100%; max-width: 22rem; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface); }
