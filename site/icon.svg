@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" width="256" height="256">
+  <title>EqDownload</title>
+  <!-- The equals sign of the name, as the meter draws it when a download is done: the copy equals the original.
+       Bottle green ground, gold bars. Flat; the content keeps inside the central 66% so adaptive-icon masks
+       on Android (Task 7) never crop it. -->
+  <rect width="256" height="256" fill="#133621"/>
+  <rect x="64" y="86" width="128" height="30" fill="#f4d96c"/>
+  <rect x="64" y="140" width="128" height="30" fill="#f4d96c"/>
+</svg>

@@ -1,0 +1,159 @@
+/* EqDownload site. Same tokens as the app (docs/design/direction.md): bottle green and gold, Unbounded and Onest,
+   square corners, no rules, no shadows, no gradients. Light mode swaps the proportions. */
+@font-face { font-family: 'Unbounded'; font-weight: 800; font-display: swap; src: url('fonts/unbounded-latin-800-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Onest'; font-weight: 400; font-display: swap; src: url('fonts/onest-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Onest'; font-weight: 500; font-display: swap; src: url('fonts/onest-latin-500-normal.woff2') format('woff2'); }
+
+:root {
+  --bg: #eef0ea; --surface: #dfe5dc; --ink: #133621; --muted: #33503c; --track: #c3cfbf;
+  --accent: #133621; --accent-ink: #f4d96c; --inverse: #133621; --inverse-ink: #f4d96c;
+  --font-display: 'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --font-text: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+  --small: 0.9375rem; --body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem); --lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --head: clamp(1.75rem, 1.3rem + 2vw, 2.5rem); --monument: clamp(2.1rem, 11.9vw, 22rem);
+  --margin: clamp(1rem, 2.2vw, 2rem); --target: 3rem;
+  --ease: cubic-bezier(0.22, 1, 0.36, 1);
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #133621; --surface: #1a4429; --ink: #f4d96c; --muted: #d4c77c; --track: #2b5e3c;
+    --accent: #f4d96c; --accent-ink: #133621; --inverse: #f4d96c; --inverse-ink: #133621;
+  }
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink); font: 400 var(--body)/1.6 var(--font-text);
+  padding-left: env(safe-area-inset-left); padding-right: env(safe-area-inset-right);
+}
+h1, h2, h3, p, ul, table { margin: 0; }
+a { color: inherit; }
+:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
+.visually-hidden { position: absolute; width: 1px; height: 1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Bar: plain links, one action. */
+.bar { padding: calc(env(safe-area-inset-top) + 0.75rem) var(--margin) 0; }
+.bar nav { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem 1.5rem; font-size: var(--small); font-weight: 500; }
+.bar a { min-height: var(--target); display: inline-flex; align-items: center; text-decoration: none; }
+.bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
+.bar .action { background: var(--accent); color: var(--accent-ink); padding: 0 1.1rem; transition: transform 140ms var(--ease); }
+.bar .action:hover { text-decoration: none; }
+.bar .action:active { transform: scale(0.97); }
+
+/* The monument. */
+.monument { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.045em; line-height: 0.9; font-size: var(--monument); white-space: nowrap; }
+.hero { padding: clamp(2.5rem, 8vh, 6rem) var(--margin) clamp(3rem, 9vh, 7rem); }
+.monument-text { display: inline-block; transform-origin: left bottom; }
+
+/* The equals sign: the upper bar is the original, the lower one the copy. They fill until equal. */
+.meter { margin-top: clamp(1rem, 3vw, 2.5rem); display: grid; gap: 0.75rem; }
+.meter span { display: block; height: 0.75rem; background: var(--ink); transform-origin: left; }
+.js .meter .bar-copy { transform: scaleX(0); animation: fill 2.4s 0.4s var(--ease) forwards; }
+@keyframes fill { to { transform: scaleX(1); } }
+
+.hero-copy { margin-top: clamp(2rem, 5vw, 4rem); max-width: 34rem; display: grid; gap: 1.25rem; }
+.lead { font-size: var(--lead); line-height: 1.4; }
+.note { font-size: var(--small); color: var(--muted); }
+
+.button {
+  display: inline-flex; align-items: center; justify-content: center; min-height: var(--target); padding: 0 1.5rem;
+  background: var(--accent); color: var(--accent-ink); font-weight: 500; text-decoration: none; border-radius: 0;
+  transition: transform 140ms var(--ease), background-color 180ms var(--ease);
+}
+.button:active { transform: scale(0.97); }
+.button.inverse { background: var(--inverse-ink); color: var(--inverse); }
+
+/* How it works: one run-in column that starts at 30% of the width. */
+.how { padding: clamp(5rem, 14vh, 12rem) var(--margin); }
+.how .column { margin-left: 30%; max-width: 36rem; display: grid; gap: 1.25rem; }
+.how h2, .faq h2 { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-size: var(--head); margin-bottom: 1.75rem; }
+.how p { color: var(--muted); }
+.how strong { color: var(--ink); font-weight: 500; }
+.how .column > p:not(:first-of-type) { margin-top: 2.5rem; }
+
+/* Interface fragments: the product's own look, drawn at real size. */
+[data-ui] { background: var(--surface); color: var(--ink); padding: 1.5rem; min-height: 13.5rem; display: grid; align-content: center; gap: 0.5rem; }
+.how .field { color: var(--ink); background: var(--track); padding: 0.75rem 1rem; font-size: var(--small); }
+.row { display: flex; justify-content: space-between; gap: 1rem; font-size: var(--small); padding: 0.4rem 0; }
+.row b { font-weight: 500; }
+.how .go { background: var(--accent); color: var(--accent-ink); padding: 0.75rem 1rem; font-size: var(--small); font-weight: 500; text-align: center; }
+.frag-title { color: var(--ink) !important; font-weight: 500; font-size: var(--body); }
+.frag-sub { font-size: var(--small); color: var(--muted) !important; }
+.presets { display: flex; flex-wrap: wrap; gap: 0.5rem; padding: 1rem; }
+.presets span { padding: 0.5rem 1rem; background: var(--track); font-size: var(--small); font-weight: 500; }
+.presets .on { background: var(--accent); color: var(--accent-ink); }
+.frag-meter { display: grid; gap: 0.5rem; margin-top: 0.75rem; }
+.frag-meter span { display: block; height: 0.5rem; background: var(--track); }
+.frag-meter .o { background: var(--ink); }
+.frag-meter .c { background: var(--track); position: relative; overflow: hidden; }
+.frag-meter .c::after { content: ''; position: absolute; inset: 0 38% 0 0; background: var(--ink); }
+
+/* Get it: a table at one size, separated by space only. */
+.get { padding: clamp(4rem, 12vh, 9rem) var(--margin); background: var(--surface); }
+.get table { width: 100%; border-collapse: collapse; font-size: var(--lead); line-height: 1.5; margin-bottom: 1rem; }
+.get th, .get td { text-align: left; font-weight: 400; padding: 0.35em 0; vertical-align: baseline; }
+.get th[scope='row'] { width: 24%; }
+.get td:nth-child(2) { width: 30%; }
+.get td.num { width: 14%; font-variant-numeric: tabular-nums; }
+.get td:last-child { color: var(--muted); }
+.get a { text-underline-offset: 6px; text-decoration-thickness: 2px; }
+.get a:hover { background: var(--accent); color: var(--accent-ink); text-decoration: none; }
+.strip { position: sticky; top: 0; z-index: 2; background: var(--surface); font: 500 var(--lead)/1.5 var(--font-text); color: var(--ink); padding: 3rem 0 1.25rem; }
+
+/* FAQ: a wide heading and indented questions. */
+.faq { padding: clamp(5rem, 14vh, 12rem) var(--margin); }
+.faq h2 { font-size: clamp(2.25rem, 5.5vw, 5.5rem); margin-bottom: clamp(3rem, 6vw, 5rem); }
+.faq-list { margin-left: 33%; display: grid; gap: 2.25rem; }
+details { position: relative; }
+summary { list-style: none; cursor: pointer; font-size: var(--lead); line-height: 1.35; padding-right: 3rem; min-height: var(--target); display: flex; align-items: center; }
+summary::-webkit-details-marker { display: none; }
+summary::after { content: ''; position: absolute; right: 0.25rem; top: 0.9em; width: 0.7rem; height: 0.7rem; border-right: 2px solid currentColor; border-bottom: 2px solid currentColor; transform: rotate(45deg); transition: transform 240ms var(--ease); }
+details[open] { background: var(--surface); padding: 1.25rem 1.5rem 1.5rem; margin: -1.25rem -1.5rem; }
+details[open] summary::after { transform: rotate(-135deg); top: 1.1em; right: 0.25rem; }
+details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
+.hash code { font: inherit; font-variant-numeric: tabular-nums; word-break: break-all; color: var(--muted); }
+
+/* Close: an invitation over the cropped name, in the inverse colours. */
+.close { background: var(--inverse); color: var(--inverse-ink); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(3rem, 8vh, 6rem) var(--margin) 0; overflow: hidden; }
+.close a:focus-visible { outline-color: var(--inverse-ink); }
+.close-top { display: grid; grid-template-columns: 7fr 2fr; gap: var(--margin); align-items: start; }
+.invite { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-size: clamp(2.5rem, 5.5vw, 5.5rem); margin-bottom: 2rem; }
+.links { list-style: none; padding: 0; display: grid; gap: 0.25rem; font-size: var(--small); }
+.links a { min-height: var(--target); display: inline-flex; align-items: center; }
+.credits { align-self: end; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: var(--small); padding-bottom: 1rem; }
+.footer-name { margin: 0; transform: translateY(18%); padding-bottom: 0; }
+
+/* Motion: scroll-linked wordmark, staggered entrances. Content stays visible without script. */
+@supports (animation-timeline: scroll()) {
+  .monument-text { animation: weigh linear both; animation-timeline: scroll(root); animation-range: 0 60vh; }
+  @keyframes weigh { to { transform: scale(0.94); } }
+}
+.js [data-reveal] { opacity: 0; transform: translateY(24px); transition: opacity 700ms var(--ease), transform 700ms var(--ease); transition-delay: calc(var(--i, 0) * 80ms); }
+.js [data-reveal].in { opacity: 1; transform: none; }
+
+@media (max-width: 760px) {
+  .bar nav { justify-content: space-between; }
+  .bar a[href='#how'] { display: none; }
+  .how .column { margin-left: 0; max-width: none; }
+  .faq-list { margin-left: 0; }
+  .faq h2 { font-size: 10vw; }
+  .close-top { grid-template-columns: 1fr; }
+  .invite { font-size: 10vw; }
+  .get table, .get tbody, .get tr, .get th, .get td { display: block; width: auto !important; }
+  .get tr { margin-bottom: 1.1rem; }
+  .get th[scope='row'] { font-size: var(--lead); }
+  .get td { font-size: var(--small); display: inline; margin-right: 0.75rem; }
+  .get td:first-of-type { font-size: var(--body); }
+  .strip { font-size: var(--lead); padding-top: 2rem; }
+  details[open] { margin: -1rem calc(-1 * var(--margin)); padding: 1rem var(--margin) 1.25rem; }
+  .footer-name { transform: translateY(15%); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  .monument-text { animation: none; }
+  .js .meter .bar-copy { animation: none; transform: none; }
+  .js [data-reveal] { opacity: 1; transform: none; transition: none; }
+  summary::after, .button, .bar .action { transition: none; }
+}
