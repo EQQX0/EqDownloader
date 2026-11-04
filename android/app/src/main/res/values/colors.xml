@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <!-- From ui/src/styles/tokens.css: the ink and inverse-ink tokens. -->
-    <color name="eq_green">#133621</color>
+    <color name="eq_green">#0b0705</color>
     <color name="eq_gold">#f4d96c</color>
-    <color name="ic_launcher_background">#133621</color>
+    <color name="ic_launcher_background">#0b0705</color>
 </resources>

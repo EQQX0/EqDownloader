@@ -1,10 +1,10 @@
 // Builds the Android launcher icons from design/icon.svg.
 // Rasterises with the Chromium that @playwright/test already installs for the e2e suite (sharp is not a
 // dependency of this repo, same choice as desktop/scripts/make-icon.mjs). Output, per density:
-//   mipmap-<d>/ic_launcher_foreground.png   adaptive foreground (108dp canvas, gold bars on transparent)
+//   mipmap-<d>/ic_launcher_foreground.png   adaptive foreground (108dp canvas, the full logo; its border sits outside the mask)
 //   mipmap-<d>/ic_launcher.png              legacy square icon (48dp)
 //   mipmap-<d>/ic_launcher_round.png        legacy round icon (48dp)
-// The adaptive background is the colour resource ic_launcher_background (#133621) and
+// The adaptive background is the colour resource ic_launcher_background (#0b0705, the logo's ground) and
 // mipmap-anydpi-v26/*.xml wire them together; those files are checked in.
 //   node android/scripts/make-icons.mjs
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
@@ -20,9 +20,9 @@ const resDir = join(here, '..', 'app', 'src', 'main', 'res');
 const DENSITIES = { mdpi: 1, hdpi: 1.5, xhdpi: 2, xxhdpi: 3, xxxhdpi: 4 };
 
 const svg = readFileSync(svgPath, 'utf8');
-// The full-bleed ground rect is the only element that spans the whole 256 box; dropping it leaves the bars.
-const barsOnly = svg.replace(/<rect width="256" height="256"[^>]*\/>/, '');
-if (barsOnly === svg) throw new Error('icon.svg no longer has its ground rect; update make-icons.mjs');
+// The logo is a rounded square with a gold border. At full canvas size the border falls outside the adaptive
+// mask (which shows about the central 72 of 108 dp), so the foreground is the whole logo.
+const barsOnly = svg;
 
 const browser = await chromium.launch();
 try {
