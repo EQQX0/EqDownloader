@@ -54,7 +54,7 @@ class YtDlpArgsTest {
     @Test
     fun downloadUsesPresetAndStagingDirOnly() {
         val m = YtDlpArgs.download("https://example.test/v", "720p", "/data/staging/x").options.toMap()
-        assertEquals("bv*[height<=720]+ba/b[height<=720]", m["-f"])
+        assertEquals("bv*[height<=720][format_note!*=?watermark]+ba/b[height<=720][format_note!*=?watermark]", m["-f"])
         assertEquals("/data/staging/x", m["-P"])
         assertTrue(m.containsKey("--no-playlist"))
         assertFalse(m.containsKey("-x"))

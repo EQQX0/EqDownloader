@@ -22,6 +22,8 @@ Check the downloads against `SHA256SUMS.txt` on the release.
 2. EqDownload shows the title and thumbnail. Pick Best, 1080p, 720p, MP3 or M4A.
 3. Press Download. Progress, speed and ETA show under Downloads. Finished files are listed in Library. On Windows, "Show in folder" opens the file's folder.
 
+TikTok links save without the TikTok logo: presets skip any format yt-dlp labels as watermarked.
+
 Files go to your Downloads folder on Windows (change it in Settings) and to `Downloads/EqDownload` on Android.
 
 ## When a download fails

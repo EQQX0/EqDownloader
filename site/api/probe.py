@@ -51,7 +51,9 @@ def size_text(n):
 def pick_formats(info):
     out = []
     seen = set()
-    fmts = [f for f in info.get('formats') or [] if f.get('url') and f.get('protocol') in ('https', 'http')]
+    # TikTok lists a watermarked copy next to the clean one; never offer it.
+    fmts = [f for f in info.get('formats') or []
+            if f.get('url') and f.get('protocol') in ('https', 'http') and 'watermark' not in (f.get('format_note') or '').lower()]
     both = [f for f in fmts if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
     for f in sorted(both, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0), reverse=True):
         h = f.get('height') or 0

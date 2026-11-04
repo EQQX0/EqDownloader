@@ -88,7 +88,7 @@ describe('buildArgs', () => {
 
   it('uses the preset format selector', () => {
     const a = buildArgs('https://x.test/v', '720p', 'C:\\dl');
-    expect(a[a.indexOf('-f') + 1]).toBe('bv*[height<=720]+ba/b[height<=720]');
+    expect(a[a.indexOf('-f') + 1]).toBe('bv*[height<=720][format_note!*=?watermark]+ba/b[height<=720][format_note!*=?watermark]');
   });
 });
 

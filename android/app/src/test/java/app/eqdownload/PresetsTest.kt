@@ -11,11 +11,11 @@ import org.junit.Test
 class PresetsTest {
     @Test
     fun fiveSpecsMatchTheSharedPresets() {
-        assertEquals(PresetSpec("bv*+ba/b", false, null), Presets.spec("best"))
-        assertEquals(PresetSpec("bv*[height<=1080]+ba/b[height<=1080]", false, null), Presets.spec("1080p"))
-        assertEquals(PresetSpec("bv*[height<=720]+ba/b[height<=720]", false, null), Presets.spec("720p"))
-        assertEquals(PresetSpec("ba/b", true, "mp3"), Presets.spec("mp3"))
-        assertEquals(PresetSpec("ba[ext=m4a]/ba/b", true, "m4a"), Presets.spec("m4a"))
+        assertEquals(PresetSpec("bv*[format_note!*=?watermark]+ba/b[format_note!*=?watermark]", false, null), Presets.spec("best"))
+        assertEquals(PresetSpec("bv*[height<=1080][format_note!*=?watermark]+ba/b[height<=1080][format_note!*=?watermark]", false, null), Presets.spec("1080p"))
+        assertEquals(PresetSpec("bv*[height<=720][format_note!*=?watermark]+ba/b[height<=720][format_note!*=?watermark]", false, null), Presets.spec("720p"))
+        assertEquals(PresetSpec("ba/b[format_note!*=?watermark]", true, "mp3"), Presets.spec("mp3"))
+        assertEquals(PresetSpec("ba[ext=m4a]/ba/b[format_note!*=?watermark]", true, "m4a"), Presets.spec("m4a"))
     }
 
     @Test
