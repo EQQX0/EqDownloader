@@ -113,6 +113,19 @@ function lockDownSession(): void {
   });
 }
 
+/** The packaged exe is a GUI-subsystem program, so CI cannot read its pipes; EQ_SMOKE_LOG also gets a copy of every line. */
+function smokeOut(line: string): void {
+  process.stderr.write(line);
+  const log = process.env.EQ_SMOKE_LOG;
+  if (log) {
+    try {
+      fs.appendFileSync(log, line);
+    } catch {
+      /* the log is a CI convenience only */
+    }
+  }
+}
+
 /** `EqDownload.exe --smoke <url>`: headless download with the packaged engine; exit 0 only if a non-empty file landed. */
 async function runSmoke(url: string): Promise<number> {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'eqdownload-smoke-'));
@@ -126,20 +139,20 @@ async function runSmoke(url: string): Promise<number> {
     await engine.start(url, 'best', dir);
     const item = await done;
     if (item.state !== 'done') {
-      process.stderr.write(`smoke failed: ${item.error ? `${item.error.code}: ${item.error.message}` : item.state}\n`);
+      smokeOut(`smoke failed: ${item.error ? `${item.error.code}: ${item.error.message}` : item.state}\n`);
       return 1;
     }
     const files = fs.readdirSync(dir).filter((f) => !f.startsWith('.'));
     const sizes = files.map((f) => fs.statSync(path.join(dir, f)).size);
     if (files.length === 0 || !sizes.some((s) => s > 0)) {
-      process.stderr.write('smoke failed: no non-empty file was produced\n');
+      smokeOut('smoke failed: no non-empty file was produced\n');
       return 1;
     }
-    process.stdout.write(`smoke ok: ${files.map((f, i) => `${f} (${sizes[i]} bytes)`).join(', ')}\n`);
+    smokeOut(`smoke ok: ${files.map((f, i) => `${f} (${sizes[i]} bytes)`).join(', ')}\n`);
     return 0;
   } catch (e) {
     const err = e as Partial<EngineError>;
-    process.stderr.write(`smoke failed: ${err.code ?? 'error'}: ${err.message ?? String(e)}\n`);
+    smokeOut(`smoke failed: ${err.code ?? 'error'}: ${err.message ?? String(e)}\n`);
     return 1;
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
