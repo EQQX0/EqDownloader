@@ -1,0 +1,165 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    name: Windows exe
+    runs-on: windows-latest
+    timeout-minutes: 45
+    outputs:
+      ytdlp_tag: ${{ steps.versions.outputs.ytdlp_tag }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Read bundled yt-dlp version
+        id: versions
+        shell: bash
+        run: |
+          tag=$(sed -n "s/^const YTDLP_TAG = '\(.*\)';/\1/p" desktop/scripts/fetch-binaries.mjs)
+          if [ -z "$tag" ]; then echo "could not read YTDLP_TAG" >&2; exit 1; fi
+          echo "ytdlp_tag=$tag" >> "$GITHUB_OUTPUT"
+      - name: Build portable exe (fetches and verifies yt-dlp and ffmpeg)
+        run: npm -w desktop run dist
+      - name: UI check
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path desktop/release/EqDownload.exe).Path
+          $out = Join-Path $env:RUNNER_TEMP 'uicheck.out'
+          $err = Join-Path $env:RUNNER_TEMP 'uicheck.err'
+          $p = Start-Process -FilePath $exe -ArgumentList '--ui-check' -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          Get-Content $out, $err -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "ui-check exited with $($p.ExitCode)" }
+      - name: Download smoke test
+        shell: pwsh
+        run: |
+          $exe = (Resolve-Path desktop/release/EqDownload.exe).Path
+          $out = Join-Path $env:RUNNER_TEMP 'smoke.out'
+          $err = Join-Path $env:RUNNER_TEMP 'smoke.err'
+          $p = Start-Process -FilePath $exe -ArgumentList '--smoke','https://www.youtube.com/watch?v=jNQXAC9IVRw' -Wait -PassThru -RedirectStandardOutput $out -RedirectStandardError $err
+          Get-Content $out, $err -ErrorAction SilentlyContinue
+          if ($p.ExitCode -ne 0) { throw "smoke test exited with $($p.ExitCode)" }
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: EqDownload.exe
+          path: desktop/release/EqDownload.exe
+          if-no-files-found: error
+
+  android:
+    name: Android apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      BUILD_TOOLS: 36.0.0
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@b843ebf9b913146b38da2eaa7aeddf76074ae1ad # v6.1.0
+        with:
+          distribution: temurin
+          java-version: 21
+      - uses: android-actions/setup-android@be39fa834029ff78f1a44aa3bb0819b8fc2bd8fd # v4.0.4
+        with:
+          packages: platform-tools platforms;android-36 build-tools;36.0.0
+      - name: Install dependencies
+        run: npm ci
+      - name: Build UI and sync Capacitor
+        run: |
+          npm -w ui run build
+          npx cap sync android
+      - name: Unit tests and unsigned release build
+        working-directory: android
+        run: |
+          chmod +x ./gradlew
+          ./gradlew testDebugUnitTest assembleRelease
+      - name: Align and sign
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_B64 }}
+          KS_PASS: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          KEY_PASS_SECRET: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          for v in KEYSTORE_B64 KS_PASS KEY_ALIAS; do
+            if [ -z "${!v}" ]; then echo "missing secret for $v" >&2; exit 1; fi
+          done
+          # Fall back to the keystore password when no separate key password is set.
+          export KEY_PASS="${KEY_PASS_SECRET:-$KS_PASS}"
+          KEYSTORE="$RUNNER_TEMP/release.jks"
+          printf '%s' "$KEYSTORE_B64" | base64 -d > "$KEYSTORE"
+          BT="$ANDROID_HOME/build-tools/$BUILD_TOOLS"
+          UNSIGNED=$(ls android/app/build/outputs/apk/release/*-unsigned.apk)
+          mkdir -p dist
+          "$BT/zipalign" -f -p 4 "$UNSIGNED" "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" sign \
+            --ks "$KEYSTORE" \
+            --ks-key-alias "$KEY_ALIAS" \
+            --ks-pass env:KS_PASS \
+            --key-pass env:KEY_PASS \
+            --out dist/EqDownload.apk \
+            "$RUNNER_TEMP/aligned.apk"
+          "$BT/apksigner" verify --verbose dist/EqDownload.apk
+      - name: Remove decoded keystore
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: EqDownload.apk
+          path: dist/EqDownload.apk
+          if-no-files-found: error
+
+  publish:
+    name: Publish release
+    needs: [windows, android]
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      YTDLP_TAG: ${{ needs.windows.outputs.ytdlp_tag }}
+    steps:
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          path: assets
+      - name: Checksums and notes
+        run: |
+          set -euo pipefail
+          mkdir -p out
+          mv assets/EqDownload.exe/EqDownload.exe out/
+          mv assets/EqDownload.apk/EqDownload.apk out/
+          (cd out && sha256sum EqDownload.exe EqDownload.apk > SHA256SUMS.txt && cat SHA256SUMS.txt)
+          cat > notes.md <<NOTES
+          Windows (EqDownload.exe): portable, x64. In CI the built exe passed a UI check and a download smoke test (it downloaded a short public clip and produced a non-empty file).
+
+          Android (EqDownload.apk): arm64-v8a only, Android 10 or newer. It builds and its unit tests pass in CI. It has not been run on a device or emulator, so treat it as untested until the owner tries it.
+
+          Bundled tools: yt-dlp ${YTDLP_TAG}. ffmpeg is a GPL build; the source offer is in the README.
+
+          SHA-256 values for both files are in SHA256SUMS.txt.
+          NOTES
+          cat notes.md
+      - name: Create release
+        run: |
+          gh release create "$GITHUB_REF_NAME" \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "EqDownload $GITHUB_REF_NAME" \
+            --notes-file notes.md \
+            out/EqDownload.exe out/EqDownload.apk out/SHA256SUMS.txt
