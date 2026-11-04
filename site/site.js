@@ -4,7 +4,7 @@
   const ios = /iPhone|iPad|iPod/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1);
   const android = /Android/.test(ua);
   const windows = /Windows/.test(ua);
-  const base = 'https://github.com/EQQX0/EqDownloader/releases/download/v0.1.2/';
+  const base = 'https://github.com/EQQX0/EqDownloader/releases/download/v0.1.3/';
   const url = location.origin + '/#get';
   const buttons = [document.getElementById('send'), document.getElementById('send2')].filter(Boolean);
   const note = document.getElementById('device');
