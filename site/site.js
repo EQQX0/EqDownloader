@@ -35,7 +35,14 @@
     try {
       const res = await fetch('/api/probe?url=' + encodeURIComponent(link));
       const data = await res.json();
-      if (!res.ok) { say(data.error || 'Could not read that link.'); return; }
+      if (!res.ok) {
+        say(data.error || 'Could not read that link.');
+        if (/app/i.test(data.error || '')) {
+          const a = document.createElement('a'); a.className = 'button'; a.href = '#get'; a.textContent = 'Get the app';
+          out.append(a);
+        }
+        return;
+      }
       out.textContent = '';
       if (safe(data.thumbnail)) {
         const img = document.createElement('img');
