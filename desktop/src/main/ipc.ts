@@ -49,3 +49,39 @@ export function checkDestination(dest: unknown, allowed: readonly string[]): str
   if (typeof dest === 'string' && path.isAbsolute(dest) && allowed.some((d) => same(norm(d), norm(dest)))) return dest;
   throw { code: 'disk', message: 'That folder was not chosen in this app. Pick the destination folder again.' } satisfies EngineError;
 }
+
+/** Adds `extra` folders to `base`, skipping duplicates (case-insensitive on Windows). Order is kept. */
+export function mergeFolders(base: readonly string[], extra: readonly string[]): string[] {
+  const out: string[] = [];
+  for (const f of [...base, ...extra]) {
+    if (!out.some((o) => same(norm(o), norm(f)))) out.push(f);
+  }
+  return out;
+}
+
+/** Parses the persisted folder list. Keeps only absolute paths that `isDir` accepts; anything malformed yields []. */
+export function parseAllowedFolders(raw: string | null | undefined, isDir: (p: string) => boolean): string[] {
+  if (!raw) return [];
+  let data: unknown;
+  try {
+    data = JSON.parse(raw);
+  } catch {
+    return [];
+  }
+  const list = Array.isArray(data) ? data : data && typeof data === 'object' ? (data as { folders?: unknown }).folders : null;
+  if (!Array.isArray(list)) return [];
+  const ok = list.filter((p): p is string => typeof p === 'string' && path.isAbsolute(p) && safeIsDir(isDir, p));
+  return mergeFolders([], ok);
+}
+
+function safeIsDir(isDir: (p: string) => boolean, p: string): boolean {
+  try {
+    return isDir(p);
+  } catch {
+    return false;
+  }
+}
+
+export function serializeAllowedFolders(folders: readonly string[]): string {
+  return JSON.stringify({ folders: mergeFolders([], folders) }, null, 2);
+}

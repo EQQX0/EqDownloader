@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EngineErrorCode } from '@eq/ui/engine';
-import { checkDestination, isUnderAny, toEnvelope, unwrapEnvelope } from './ipc';
+import { checkDestination, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope, unwrapEnvelope } from './ipc';
 
 const codes: EngineErrorCode[] = ['unsupported', 'blocked', 'network', 'outdated', 'disk', 'unknown'];
 
@@ -70,5 +70,42 @@ describe('destination checks', () => {
     expect(isUnderAny(path.join(allowed[0]!, '..', 'x.mp4'), allowed)).toBe(false);
     expect(isUnderAny(allowed[0], allowed)).toBe(false);
     expect(isUnderAny('relative/a.mp4', allowed)).toBe(false);
+  });
+});
+
+describe('persisted allowed folders', () => {
+  const abs = (p: string) => path.resolve(p);
+  const dirs = new Set([abs('/media/a'), abs('/media/b')]);
+  const isDir = (p: string) => dirs.has(p);
+
+  it('round-trips through serialize and parse', () => {
+    const raw = serializeAllowedFolders([abs('/media/a'), abs('/media/b')]);
+    expect(parseAllowedFolders(raw, isDir)).toEqual([abs('/media/a'), abs('/media/b')]);
+  });
+
+  it('ignores missing, empty and malformed files', () => {
+    expect(parseAllowedFolders(null, isDir)).toEqual([]);
+    expect(parseAllowedFolders('', isDir)).toEqual([]);
+    expect(parseAllowedFolders('{not json', isDir)).toEqual([]);
+    expect(parseAllowedFolders('"text"', isDir)).toEqual([]);
+    expect(parseAllowedFolders('{"folders":"x"}', isDir)).toEqual([]);
+  });
+
+  it('drops non-absolute, non-string and missing-directory entries', () => {
+    const raw = JSON.stringify({ folders: ['relative/dir', 42, null, abs('/media/gone'), abs('/media/a')] });
+    expect(parseAllowedFolders(raw, isDir)).toEqual([abs('/media/a')]);
+  });
+
+  it('treats a throwing existence check as not a directory', () => {
+    const raw = JSON.stringify({ folders: [abs('/media/a')] });
+    expect(parseAllowedFolders(raw, () => { throw new Error('EACCES'); })).toEqual([]);
+  });
+
+  it('de-duplicates, case-insensitively on win32', () => {
+    const merged = mergeFolders([abs('/media/a')], [abs('/media/a'), abs('/media/b')]);
+    expect(merged).toEqual([abs('/media/a'), abs('/media/b')]);
+    if (process.platform === 'win32') {
+      expect(mergeFolders(['C:\\Media\\A'], ['c:\\media\\a\\'])).toEqual(['C:\\Media\\A']);
+    }
   });
 });

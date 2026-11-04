@@ -16,13 +16,18 @@ class TestEngine implements Engine {
   private handlers = new Set<(i: DownloadItem) => void>();
   private seq = 0;
 
+  probeGate: Promise<void> | null = null;
+  startGate: Promise<void> | null = null;
+
   async probe(url: string): Promise<ProbeResult> {
     this.probeCalls.push(url);
+    if (this.probeGate) await this.probeGate;
     if (this.probeError) throw this.probeError;
     return { url, title: this.title, thumbnail: null, durationSec: 10, formats: [] };
   }
   async start(url: string, preset: Preset, destination: string): Promise<string> {
     this.startCalls.push({ url, preset, destination });
+    if (this.startGate) await this.startGate;
     if (this.startError) throw this.startError;
     const id = `t-${++this.seq}`;
     this.items.push(mk(id, url, preset));
@@ -237,5 +242,71 @@ describe('settings and subscriptions', () => {
     off();
     await store.submitLink('hello again');
     expect(fn).not.toHaveBeenCalled();
+  });
+});
+
+describe('races and guards', () => {
+  it('a slow earlier probe cannot overwrite the No link found. state', async () => {
+    const { engine, store } = await setup();
+    let release!: () => void;
+    engine.probeGate = new Promise<void>((r) => (release = r));
+    const slow = store.submitLink('https://a.test/slow');
+    await store.submitLink('hello');
+    release();
+    await slow;
+    expect(store.state.error?.message).toBe('No link found.');
+    expect(store.state.probe).toBeNull();
+  });
+
+  it('a slow earlier probe cannot overwrite a newer probe', async () => {
+    const { engine, store } = await setup();
+    let release!: () => void;
+    engine.probeGate = new Promise<void>((r) => (release = r));
+    engine.title = 'Old';
+    const slow = store.submitLink('https://a.test/old');
+    engine.probeGate = null;
+    engine.title = 'New';
+    await store.submitLink('https://a.test/new');
+    release();
+    await slow;
+    expect(store.state.probe?.title).toBe('New');
+  });
+
+  it('two rapid startDownload calls create one item', async () => {
+    const { engine, store } = await setup();
+    await store.submitLink('https://a.test/v');
+    let release!: () => void;
+    engine.startGate = new Promise<void>((r) => (release = r));
+    const a = store.startDownload('best');
+    const b = store.startDownload('best');
+    release();
+    await Promise.all([a, b]);
+    expect(engine.startCalls).toHaveLength(1);
+    expect(store.state.items).toHaveLength(1);
+  });
+
+  it('asks to choose the folder again when the saved destination is rejected', async () => {
+    const { engine, store } = await setup({ chooseFolder: async () => 'E:\Media' });
+    await store.submitLink('https://a.test/v');
+    engine.startError = { code: 'disk', message: 'That folder was not chosen in this app.' };
+    await store.startDownload('best');
+    expect(store.state.error?.offerChoose).toBe(true);
+    expect(store.state.error?.message).toContain('Choose the folder again.');
+    expect(store.state.screen).toBe('home');
+    engine.startError = null;
+    await store.chooseFolder();
+    expect(store.state.error).toBeNull();
+    expect(store.state.settings.destination).toBe('E:\Media');
+    await store.startDownload('best');
+    expect(engine.startCalls.at(-1)?.destination).toBe('E:\Media');
+  });
+
+  it('exposes update for items that fail as unsupported or outdated, and retry only where useful', async () => {
+    const { engine, store } = await setup();
+    await store.submitLink('https://a.test/v');
+    await store.startDownload('best');
+    engine.emit({ ...engine.find('t-1'), state: 'failed', error: { code: 'unsupported', message: 'x' } });
+    expect(store.state.error?.message).toBe('This site is not supported.');
+    expect(store.state.error?.offerUpdate).toBe(true);
   });
 });

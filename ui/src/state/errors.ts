@@ -5,6 +5,8 @@ export interface UiError {
   message: string;
   /** Show the Update engine action. */
   offerUpdate: boolean;
+  /** Show the Choose folder action (the saved destination is no longer allowed). */
+  offerChoose?: boolean;
 }
 
 export const NO_LINK: UiError = { code: 'nolink', message: 'No link found.', offerUpdate: false };

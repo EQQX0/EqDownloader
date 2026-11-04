@@ -39,6 +39,8 @@ const status = h('div', { role: 'status', 'aria-live': 'polite', class: 'visuall
 const errorText = h('span', { testid: 'error-message' });
 const errorUpdate = h('button', { type: 'button', testid: 'update-engine' }, 'Update engine');
 errorUpdate.addEventListener('click', () => void store.updateEngine());
+const errorChoose = h('button', { type: 'button', testid: 'choose-folder' }, 'Choose folder');
+errorChoose.addEventListener('click', () => void store.chooseFolder());
 const errorBox = h('div', { role: 'alert', class: 'error' }, errorText);
 const main = h('main', { id: 'main' });
 root.append(h('nav', { 'aria-label': 'Main' }, navList), errorBox, main, status);
@@ -61,9 +63,13 @@ function render(): void {
   view!.update();
   errorBox.hidden = !error;
   errorText.textContent = error?.message ?? '';
-  // Only attached while offered, so the Settings screen has the single Update engine button.
-  if (error?.offerUpdate) errorBox.append(errorUpdate);
+  // Action buttons are attached only while offered, and never on Settings, which has its own,
+  // so each of these test ids exists once at a time.
+  const here = screen !== 'settings';
+  if (error?.offerUpdate && here) errorBox.append(errorUpdate);
   else errorUpdate.remove();
+  if (error?.offerChoose && here) errorBox.append(errorChoose);
+  else errorChoose.remove();
   for (const item of items) {
     if (lastState.has(item.id) && lastState.get(item.id) !== item.state) {
       status.textContent = `${item.title}: ${item.state === 'running' ? 'downloading' : item.state}`;

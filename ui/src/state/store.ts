@@ -152,9 +152,16 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         });
       }
     } catch (e) {
-      set({ error: describeError(asEngineError(e), state.settings.destination) });
+      const ui = describeError(asEngineError(e), state.settings.destination);
+      if (ui.code === 'disk' && host.chooseFolder) {
+        set({ error: { ...ui, message: `${ui.message} Choose the folder again.`, offerChoose: true } });
+      } else {
+        set({ error: ui });
+      }
     }
   }
+
+  let starting = false;
 
   return {
     state,
@@ -165,6 +172,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     async submitLink(text) {
       const url = extractUrl(text);
       if (!url) {
+        probeSeq++; // a slower earlier probe must not overwrite this result
         set({ error: NO_LINK, probe: null, probing: false });
         return;
       }
@@ -182,10 +190,15 @@ export function createStore(engine: Engine, host: Host = {}): Store {
 
     async startDownload(preset) {
       const probe = state.probe;
-      if (!probe) return;
-      set({ error: null });
-      await begin(probe.url, preset, probe.title);
-      if (!state.error) set({ probe: null, screen: 'downloads' });
+      if (!probe || starting) return;
+      starting = true;
+      try {
+        set({ error: null });
+        await begin(probe.url, preset, probe.title);
+        if (!state.error) set({ probe: null, screen: 'downloads' });
+      } finally {
+        starting = false;
+      }
     },
 
     async cancel(id) {
@@ -218,7 +231,10 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         const picked = await host.chooseFolder();
         if (!picked) return;
         write(KEY_DEST, picked);
-        set({ settings: { ...state.settings, destination: picked } });
+        set({
+          settings: { ...state.settings, destination: picked },
+          error: state.error?.offerChoose ? null : state.error,
+        });
       } catch (e) {
         set({ error: describeError(asEngineError(e), state.settings.destination) });
       }

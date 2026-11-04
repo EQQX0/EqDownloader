@@ -1,5 +1,6 @@
 import type { Preset } from '../engine';
 import { h } from '../lib/dom';
+import { safeImageSrc } from '../lib/image';
 import { PRESET_LABELS } from '../lib/labels';
 import { PRESET_LIST } from '../state/store';
 import type { ScreenFactory } from './types';
@@ -59,8 +60,9 @@ export const createHome: ScreenFactory = (store) => {
       return;
     }
     title.textContent = probe.title;
-    if (probe.thumbnail) {
-      thumb.setAttribute('src', probe.thumbnail);
+    const img = safeImageSrc(probe.thumbnail);
+    if (img) {
+      thumb.setAttribute('src', img);
       thumb.hidden = false;
     } else {
       thumb.removeAttribute('src');

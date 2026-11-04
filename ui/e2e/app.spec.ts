@@ -42,3 +42,87 @@ test('settings show the destination and engine update', async ({ page }) => {
   await expect(tid(page, 'engine-version')).toHaveText('fake-1.0.0');
   await expect(tid(page, 'choose-folder')).toBeHidden();
 });
+
+/** Installs a scripted window.eq so the real UI can be driven through error paths. */
+async function installStubEngine(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const handlers = new Set<(i: unknown) => void>();
+    let n = 0;
+    const items = new Map<string, Record<string, unknown>>();
+    const emit = (id: string, patch: Record<string, unknown>) => {
+      const next = { ...items.get(id), ...patch };
+      items.set(id, next);
+      handlers.forEach((h) => h({ ...next }));
+    };
+    (window as unknown as { eq: unknown }).eq = {
+      async probe(url: string) {
+        if (url.includes('unsupported')) throw { code: 'unsupported', message: 'x' };
+        if (url.includes('outdated')) throw { code: 'outdated', message: 'x' };
+        return { url, title: 'Stub video', thumbnail: null, durationSec: 5, formats: [] };
+      },
+      async start(url: string, preset: string) {
+        const id = `s-${++n}`;
+        items.set(id, { id, url, title: url, preset, state: 'queued', percent: 0, speedBps: null, etaSec: null, filePath: null, error: null });
+        setTimeout(() => {
+          if (n === 1) emit(id, { state: 'failed', error: { code: 'network', message: 'dns' } });
+          else emit(id, { state: 'done', percent: 100, filePath: 'C:/x/Stub video.mp4' });
+        }, 100);
+        return id;
+      },
+      async cancel() {},
+      async list() { return []; },
+      async updateEngine() { return '2099.01.01'; },
+      onProgress(h: (i: unknown) => void) { handlers.add(h); return () => handlers.delete(h); },
+      async getDefaultFolder() { return 'C:/Users/me/Downloads'; },
+      async chooseFolder() { return null; },
+      async revealFile() {},
+    };
+  });
+}
+
+test('network failure shows Failed with Retry, and Retry creates a new item', async ({ page }) => {
+  await installStubEngine(page);
+  await page.goto('/');
+  await tid(page, 'link-input').fill('https://example.test/v');
+  await tid(page, 'link-submit').click();
+  await tid(page, 'start-button').click();
+
+  await expect(tid(page, 'item-state')).toHaveText('Failed');
+  await expect(tid(page, 'item-error')).toHaveText('No network connection.');
+  await expect(tid(page, 'item-retry')).toBeVisible();
+  await tid(page, 'item-retry').click();
+
+  await expect(page.locator('[data-testid^="item-s-"]')).toHaveCount(2);
+  await expect(page.getByTestId('item-s-2').getByTestId('item-state')).toHaveText('Done');
+  await expect(page.getByTestId('item-s-1').getByTestId('item-state')).toHaveText('Failed');
+  await tid(page, 'nav-library').click();
+  await expect(tid(page, 'item-open')).toBeVisible();
+  await expect(page.getByText('Stub video', { exact: true })).toBeVisible();
+});
+
+for (const [kind, message] of [
+  ['unsupported', 'This site is not supported.'],
+  ['outdated', 'The download engine is out of date.'],
+] as const) {
+  test(`${kind} link shows the message and an Update engine action`, async ({ page }) => {
+    await installStubEngine(page);
+    await page.goto('/');
+    await tid(page, 'link-input').fill(`https://example.test/${kind}`);
+    await tid(page, 'link-submit').click();
+    await expect(tid(page, 'error-message')).toHaveText(message);
+    await expect(tid(page, 'update-engine')).toHaveCount(1);
+    await tid(page, 'update-engine').click();
+    await expect(tid(page, 'error-message')).toBeHidden();
+    await tid(page, 'nav-settings').click();
+    await expect(tid(page, 'engine-version')).toHaveText('2099.01.01');
+    await expect(tid(page, 'update-engine')).toHaveCount(1);
+  });
+}
+
+test('desktop bridge supplies the default destination and Show in folder', async ({ page }) => {
+  await installStubEngine(page);
+  await page.goto('/');
+  await tid(page, 'nav-settings').click();
+  await expect(tid(page, 'destination')).toHaveText('C:/Users/me/Downloads');
+  await expect(tid(page, 'choose-folder')).toBeVisible();
+});

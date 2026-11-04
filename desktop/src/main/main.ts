@@ -3,7 +3,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { DownloadItem, EngineError, Preset } from '@eq/ui/engine';
-import { checkDestination, isUnderAny, toEnvelope } from './ipc';
+import { checkDestination, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope } from './ipc';
 import { resolveBinaries } from './paths';
 import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from './security';
 import { updateYtDlp } from './update';
@@ -45,7 +45,16 @@ function str(v: unknown, name: string): string {
 
 function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null): void {
   // Folders the renderer may write to: the default Downloads folder plus whatever the user picked.
-  const allowedFolders = new Set<string>([app.getPath('downloads')]);
+  // Picked folders persist across restarts; only the eq:chooseFolder handler (dialog result) ever writes the file.
+  const storeFile = path.join(app.getPath('userData'), 'allowed-folders.json');
+  const isDir = (p: string): boolean => fs.statSync(p).isDirectory();
+  let saved: string | null = null;
+  try {
+    saved = fs.readFileSync(storeFile, 'utf8');
+  } catch {
+    // First run or unreadable: start with the default folder only.
+  }
+  let allowed: string[] = mergeFolders([app.getPath('downloads')], parseAllowedFolders(saved, isDir));
   const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
     ipcMain.handle(channel, (_e, ...args) => toEnvelope(() => fn(...args) as Promise<unknown>));
   };
@@ -53,7 +62,7 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   handle('eq:probe', (url) => engine.probe(str(url, 'url')));
   handle('eq:start', (url, preset, destination) => {
     if (!PRESETS.includes(preset as Preset)) throw { code: 'unknown', message: 'Invalid preset' } satisfies EngineError;
-    const dest = checkDestination(destination, [...allowedFolders]);
+    const dest = checkDestination(destination, allowed);
     return engine.start(str(url, 'url'), preset as Preset, dest);
   });
   handle('eq:cancel', (id) => engine.cancel(str(id, 'id')));
@@ -65,12 +74,19 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
     const opts = { properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> };
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
     const picked = r.canceled ? null : (r.filePaths[0] ?? null);
-    if (picked) allowedFolders.add(picked);
+    if (picked) {
+      allowed = mergeFolders(allowed, [picked]);
+      try {
+        fs.writeFileSync(storeFile, serializeAllowedFolders(allowed.filter((f) => f !== app.getPath('downloads'))));
+      } catch {
+        // Not persisted; the folder still works until the app closes.
+      }
+    }
     return picked;
   });
   handle('eq:revealFile', (p) => {
     const file = str(p, 'path');
-    if (!isUnderAny(file, [...allowedFolders])) {
+    if (!isUnderAny(file, allowed)) {
       throw { code: 'disk', message: 'That file is outside the download folders' } satisfies EngineError;
     }
     shell.showItemInFolder(file);
@@ -130,7 +146,70 @@ async function runSmoke(url: string): Promise<number> {
   }
 }
 
+/** `EqDownload.exe --ui-check`: loads the real UI hidden, exactly as production does, and checks it rendered without console errors or CSP violations. */
+async function runUiCheck(): Promise<number> {
+  const entry = uiEntry();
+  if (path.basename(path.dirname(entry)) === 'renderer') {
+    process.stderr.write(`ui-check failed: real UI not found, would load fallback (${entry})
+`);
+    return 1;
+  }
+  lockDownSession();
+  const win = new BrowserWindow({ ...windowOptions(), show: false });
+  hardenWebContents(win.webContents);
+  registerIpc(createEngine(), () => win); // same handlers as production, so the UI start-up calls succeed
+  const problems: string[] = [];
+  win.webContents.on('console-message', (...args: unknown[]) => {
+    const first = args[0] as { level?: unknown; message?: unknown } | undefined;
+    const isEvent = first && typeof first === 'object' && 'message' in first;
+    const level = isEvent ? first.level : args[1];
+    const message = String(isEvent ? first.message : args[2]);
+    // Chromium ignores frame-ancestors in a <meta> CSP and says so. The same policy also arrives as a header, which honours it.
+    if (/'frame-ancestors' is ignored when delivered via a <meta>/.test(message)) return;
+    if (level === 'error' || level === 'warning' || level === 2 || level === 3 || /Content Security Policy|Refused to/i.test(message)) {
+      problems.push(message);
+    }
+  });
+  win.webContents.on('did-fail-load', (_e, code, desc, url) => problems.push(`load failed ${code} ${desc} ${url}`));
+  try {
+    await win.loadFile(entry);
+    const probe = `({
+      link: !!document.querySelector('[data-testid="link-input"]'),
+      nav: !!document.querySelector('[data-testid="nav-home"]'),
+      bridge: typeof window.eq === 'object',
+    })`;
+    let seen = { link: false, nav: false, bridge: false };
+    for (let i = 0; i < 50 && !(seen.link && seen.nav); i++) {
+      seen = await win.webContents.executeJavaScript(probe);
+      if (!(seen.link && seen.nav)) await new Promise((r) => setTimeout(r, 100));
+    }
+    await new Promise((r) => setTimeout(r, 300));
+    if (!seen.link) problems.push('link-input not found');
+    if (!seen.nav) problems.push('nav-home not found');
+    if (!seen.bridge) problems.push('window.eq bridge missing');
+    if (problems.length) {
+      process.stderr.write(`ui-check failed: ${problems.join(' | ')}
+`);
+      return 1;
+    }
+    process.stdout.write(`ui-check ok: ${entry}
+`);
+    return 0;
+  } catch (e) {
+    process.stderr.write(`ui-check failed: ${e instanceof Error ? e.message : String(e)}
+`);
+    return 1;
+  } finally {
+    win.destroy();
+  }
+}
+
 function boot(): void {
+  if (process.argv.includes('--ui-check')) {
+    void app.whenReady().then(async () => app.exit(await runUiCheck()));
+    return;
+  }
+
   const smokeIdx = process.argv.indexOf('--smoke');
   if (smokeIdx !== -1) {
     const url = process.argv[smokeIdx + 1];
