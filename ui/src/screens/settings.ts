@@ -5,25 +5,29 @@ import { PRESET_LIST } from '../state/store';
 import type { ScreenFactory } from './types';
 
 export const createSettings: ScreenFactory = (store) => {
-  const dest = h('output', { testid: 'destination', id: 'destination' });
-  const choose = h('button', { type: 'button', testid: 'choose-folder' }, 'Choose folder');
+  const dest = h('output', { testid: 'destination', id: 'destination', class: 'setting-value' });
+  const choose = h('button', { type: 'button', testid: 'choose-folder', class: 'button setting-action' }, 'Choose folder');
   choose.hidden = !store.canChooseFolder;
   choose.addEventListener('click', () => void store.chooseFolder());
 
-  const select = h('select', { id: 'default-preset', testid: 'default-preset' });
+  const select = h('select', { id: 'default-preset', testid: 'default-preset', class: 'field select-field' });
   for (const p of PRESET_LIST) select.append(h('option', { value: p }, PRESET_LABELS[p]));
   select.addEventListener('change', () => store.setPreset(select.value as Preset));
 
-  const version = h('output', { testid: 'engine-version', id: 'engine-version' });
-  const update = h('button', { type: 'button', testid: 'update-engine' }, 'Update engine');
+  const version = h('output', { testid: 'engine-version', id: 'engine-version', class: 'setting-value' });
+  const update = h('button', { type: 'button', testid: 'update-engine', class: 'button setting-action' }, 'Update engine');
   update.addEventListener('click', () => void store.updateEngine());
 
   const el = h(
-    'div', {},
-    h('h1', {}, 'Settings'),
-    h('p', {}, h('label', { for: 'destination' }, 'Destination folder: '), dest, ' ', choose),
-    h('p', {}, h('label', { for: 'default-preset' }, 'Default quality: '), select),
-    h('p', {}, h('label', { for: 'engine-version' }, 'Engine version: '), version, ' ', update),
+    'div', { class: 'screen screen-settings' },
+    h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Settings')),
+    h('div', { class: 'settings' },
+      h('p', { class: 'setting' }, h('label', { for: 'destination', class: 'run-in' }, 'Destination folder: '), dest, ' ', choose),
+      h('p', { class: 'setting' }, h('label', { for: 'default-preset', class: 'run-in' }, 'Default quality: '), select),
+      h('p', { class: 'setting' }, h('label', { for: 'engine-version', class: 'run-in' }, 'Engine version: '), version, ' ', update),
+      h('p', { class: 'setting-note' },
+        'Sites change often. When a link that used to work fails, update the engine first.'),
+    ),
   );
 
   function sync(): void {

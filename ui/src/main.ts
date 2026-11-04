@@ -1,6 +1,11 @@
+import './styles/fonts.css';
+import './styles/tokens.css';
 import './styles/base.css';
+import './styles/app.css';
+import './styles/motion.css';
 import { getEngine, hostFor } from './engine/getEngine';
 import { h } from './lib/dom';
+import { equalsMark } from './lib/meter';
 import { createDownloads } from './screens/downloads';
 import { createHome } from './screens/home';
 import { createLibrary } from './screens/library';
@@ -26,9 +31,9 @@ const NAV: Array<[Screen, string]> = [
 
 const root = document.getElementById('app')!;
 const navButtons = new Map<Screen, HTMLButtonElement>();
-const navList = h('ul');
+const navList = h('ul', { class: 'nav-list' });
 for (const [screen, label] of NAV) {
-  const b = h('button', { type: 'button', testid: `nav-${screen}` }, label);
+  const b = h('button', { type: 'button', testid: `nav-${screen}`, class: 'nav-button' }, label);
   b.addEventListener('click', () => store.go(screen));
   navButtons.set(screen, b);
   navList.append(h('li', {}, b));
@@ -36,14 +41,26 @@ for (const [screen, label] of NAV) {
 
 // State changes are announced through a polite live region; progress ticks are not.
 const status = h('div', { role: 'status', 'aria-live': 'polite', class: 'visually-hidden' });
-const errorText = h('span', { testid: 'error-message' });
-const errorUpdate = h('button', { type: 'button', testid: 'update-engine' }, 'Update engine');
+const errorText = h('span', { testid: 'error-message', id: 'error-text', class: 'error-text' });
+const errorUpdate = h('button', { type: 'button', testid: 'update-engine', class: 'button' }, 'Update engine');
 errorUpdate.addEventListener('click', () => void store.updateEngine());
-const errorChoose = h('button', { type: 'button', testid: 'choose-folder' }, 'Choose folder');
+const errorChoose = h('button', { type: 'button', testid: 'choose-folder', class: 'button' }, 'Choose folder');
 errorChoose.addEventListener('click', () => void store.chooseFolder());
 const errorBox = h('div', { role: 'alert', class: 'error' }, errorText);
-const main = h('main', { id: 'main' });
-root.append(h('nav', { 'aria-label': 'Main' }, navList), errorBox, main, status);
+const main = h('main', { id: 'main', class: 'main' });
+const header = h(
+  'header', { class: 'bar' },
+  h('span', { class: 'brand' }, equalsMark('brand-mark'), h('span', { class: 'brand-name' }, 'EqDownload')),
+  h('nav', { 'aria-label': 'Main', class: 'nav' }, navList),
+);
+// The name returns at full width in the inverse colours, with the privacy promise it keeps.
+const footer = h(
+  'footer', { class: 'colophon' },
+  h('p', { class: 'colophon-name', 'aria-hidden': 'true' }, 'EqDownload'),
+  h('p', { class: 'colophon-text' },
+    'No accounts, no analytics, no ads. EqDownload talks only to the sites you give it, and to GitHub when you press Update engine.'),
+);
+root.append(header, errorBox, main, footer, status);
 
 let current: Screen | null = null;
 let view: ScreenView | null = null;

@@ -2,16 +2,21 @@ import type { Preset } from '../engine';
 import { h } from '../lib/dom';
 import { safeImageSrc } from '../lib/image';
 import { PRESET_LABELS } from '../lib/labels';
+import { titleLength } from '../lib/meter';
 import { PRESET_LIST } from '../state/store';
 import type { ScreenFactory } from './types';
 
 export const createHome: ScreenFactory = (store) => {
   const input = h('input', {
     id: 'link', name: 'link', type: 'text', autocomplete: 'off', spellcheck: 'false',
-    placeholder: 'Paste a link', testid: 'link-input',
+    placeholder: 'Paste a link', testid: 'link-input', class: 'field link-field',
+    'aria-describedby': 'link-hint error-text',
   });
-  const submit = h('button', { type: 'submit', testid: 'link-submit' }, 'Check link');
-  const form = h('form', { novalidate: true }, h('label', { for: 'link' }, 'Link'), input, submit);
+  const submit = h('button', { type: 'submit', testid: 'link-submit', class: 'button check' }, 'Check link');
+  const form = h(
+    'form', { novalidate: true, class: 'link-form' },
+    h('label', { for: 'link', class: 'field-label' }, 'Link'), input, submit,
+  );
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     void store.submitLink(input.value);
@@ -21,24 +26,29 @@ export const createHome: ScreenFactory = (store) => {
     setTimeout(() => void store.submitLink(input.value), 0);
   });
 
-  const busy = h('p', { role: 'status' });
-  const result = h('section', { 'aria-labelledby': 'probe-heading' });
-  const el = h('div', {}, h('h1', {}, 'Download'), form, busy, result);
+  const busy = h('p', { role: 'status', class: 'busy' });
+  const result = h('section', { 'aria-labelledby': 'probe-heading', class: 'probe' });
+  const el = h(
+    'div', { class: 'screen screen-home' },
+    h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Download')),
+    h('p', { class: 'lead intro', id: 'link-hint' }, 'Paste a link to a video page. Keep the video, or only its sound.'),
+    form, busy, result,
+  );
 
   let selected: Preset | null = null;
   let shownUrl: string | null = null;
   const buttons = new Map<Preset, HTMLButtonElement>();
-  const title = h('h2', { id: 'probe-heading', testid: 'probe-title' });
-  const thumb = h('img', { alt: '', width: '160' });
-  const presetGroup = h('div', { role: 'group', 'aria-label': 'Quality' });
-  const start = h('button', { type: 'button', testid: 'start-button' }, 'Download');
+  const title = h('h2', { id: 'probe-heading', testid: 'probe-title', class: 'probe-title' });
+  const thumb = h('img', { alt: '', width: '160', class: 'probe-thumb' });
+  const presetGroup = h('div', { role: 'group', 'aria-label': 'Quality', class: 'presets' });
+  const start = h('button', { type: 'button', testid: 'start-button', class: 'button button-primary start' }, 'Download');
 
   function sync(): void {
     for (const [p, b] of buttons) b.setAttribute('aria-pressed', String(p === selected));
   }
 
   for (const p of PRESET_LIST) {
-    const b = h('button', { type: 'button', testid: `preset-${p}`, 'aria-pressed': 'false' }, PRESET_LABELS[p]);
+    const b = h('button', { type: 'button', testid: `preset-${p}`, 'aria-pressed': 'false', class: 'preset' }, PRESET_LABELS[p]);
     b.addEventListener('click', () => {
       selected = p;
       sync();
@@ -54,12 +64,15 @@ export const createHome: ScreenFactory = (store) => {
   function update(): void {
     const { probe, probing, settings } = store.state;
     busy.textContent = probing ? 'Checking link…' : '';
+    form.setAttribute('aria-busy', String(probing));
     result.hidden = !probe;
     if (!probe) {
       shownUrl = null;
       return;
     }
     title.textContent = probe.title;
+    title.title = probe.title;
+    title.dataset.length = titleLength(probe.title);
     const img = safeImageSrc(probe.thumbnail);
     if (img) {
       thumb.setAttribute('src', img);
@@ -68,6 +81,7 @@ export const createHome: ScreenFactory = (store) => {
       thumb.removeAttribute('src');
       thumb.hidden = true;
     }
+    result.classList.toggle('has-thumb', !thumb.hidden);
     if (shownUrl !== probe.url) {
       shownUrl = probe.url;
       selected = settings.preset;

@@ -1,0 +1,57 @@
+/* Tokens. Direction "The name as a monument", seed 376266133 (docs/design/direction.md).
+   Two values carry every screen: bottle green and gold. Dark is the dealt sheet; light swaps the proportions
+   (a pale sage ground with green ink) and keeps gold for the inverse colophon and the text on the action.
+   Every colour in the build comes from here. */
+:root {
+  color-scheme: light dark;
+
+  --bg: light-dark(#eef0ea, #133621);
+  --surface: light-dark(#dfe5dc, #1a4429);
+  --surface-press: light-dark(#d0d9cc, #22553a);
+  --ink: light-dark(#133621, #f4d96c);
+  --muted: light-dark(#33503c, #d4c77c);
+  --track: light-dark(#c3cfbf, #2b5e3c);
+  --accent: light-dark(#133621, #f4d96c);
+  --accent-ink: light-dark(#f4d96c, #133621);
+  --inverse: light-dark(#133621, #f4d96c);
+  --inverse-ink: light-dark(#f4d96c, #133621);
+
+  --font-display: 'Unbounded', 'Arial Black', system-ui, sans-serif;
+  --font-text: 'Onest', system-ui, 'Segoe UI', Roboto, sans-serif;
+
+  /* Five sizes, far apart. The monument is sized so the longest screen name ("Downloads") spans the width. */
+  --step-small: clamp(0.875rem, 0.85rem + 0.1vw, 0.9375rem);
+  --step-body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem);
+  --step-lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
+  --step-head: clamp(2rem, 1.3rem + 3.2vw, 4rem);
+  --step-monument: clamp(2.25rem, 10.4vw, 11.5rem);
+
+  /* Space: one pair of tight margins, an 8px rhythm. */
+  --margin: clamp(1rem, 2.2vw, 2rem);
+  --gutter: clamp(1rem, 2vw, 2rem);
+  --space-1: 0.5rem;
+  --space-2: 1rem;
+  --space-3: 1.5rem;
+  --space-4: 2rem;
+  --space-5: 3rem;
+  --space-6: 5rem;
+  --bar: 0.75rem;              /* the thickness of one bar of the equals sign */
+  --target: 2.75rem;           /* 44px minimum touch target */
+  --radius: 0;                 /* square corners, decided once */
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-in-out: cubic-bezier(0.76, 0, 0.24, 1);
+  --t-press: 140ms;
+  --t-hover: 180ms;
+  --t-ui: 240ms;
+  --t-reveal: 700ms;
+}
+
+@media (pointer: coarse) {
+  :root { --target: 3rem; } /* 48dp on touch screens (Android) */
+}

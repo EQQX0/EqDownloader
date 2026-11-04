@@ -2,6 +2,7 @@ import type { DownloadItem } from '../engine';
 import { h } from '../lib/dom';
 import { formatEta, formatPercent, formatSpeed } from '../lib/format';
 import { STATE_LABELS } from '../lib/labels';
+import { createMeter, type Meter } from '../lib/meter';
 import { describeError } from '../state/errors';
 import type { ScreenFactory } from './types';
 
@@ -11,6 +12,7 @@ interface Row {
   state: HTMLElement;
   percent: HTMLElement;
   bar: HTMLProgressElement;
+  meter: Meter;
   detail: HTMLElement;
   error: HTMLElement;
   cancel: HTMLButtonElement;
@@ -18,24 +20,28 @@ interface Row {
 }
 
 export const createDownloads: ScreenFactory = (store) => {
-  const empty = h('p', {}, 'No downloads yet.');
-  const list = h('ol', { 'aria-label': 'Downloads' });
-  const el = h('div', {}, h('h1', {}, 'Downloads'), empty, list);
+  const empty = h('p', { class: 'lead empty' }, 'No downloads yet.');
+  const list = h('ol', { 'aria-label': 'Downloads', class: 'queue' });
+  const el = h('div', { class: 'screen screen-downloads' }, h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Downloads')), empty, list);
   const rows = new Map<string, Row>();
 
   function build(item: DownloadItem): Row {
-    const title = h('strong');
-    const state = h('span', { testid: 'item-state' });
-    const percent = h('span', { testid: 'item-percent' });
-    const bar = h('progress', { max: '100', value: '0', 'aria-label': 'Progress' });
-    const detail = h('span');
-    const error = h('p', { testid: 'item-error' });
-    const cancel = h('button', { type: 'button', testid: 'item-cancel' }, 'Cancel');
-    const retry = h('button', { type: 'button', testid: 'item-retry' }, 'Retry');
+    const title = h('strong', { class: 'job-title' });
+    const state = h('span', { testid: 'item-state', class: 'job-state' });
+    const percent = h('span', { testid: 'item-percent', class: 'job-percent' });
+    const bar = h('progress', { max: '100', value: '0', 'aria-label': 'Progress', class: 'visually-hidden' });
+    const meter = createMeter('job-meter');
+    const detail = h('span', { class: 'job-detail' });
+    const error = h('p', { testid: 'item-error', class: 'job-error' });
+    const cancel = h('button', { type: 'button', testid: 'item-cancel', class: 'button job-action' }, 'Cancel');
+    const retry = h('button', { type: 'button', testid: 'item-retry', class: 'button job-action' }, 'Retry');
     cancel.addEventListener('click', () => void store.cancel(item.id));
     retry.addEventListener('click', () => void store.retry(item.id));
-    const li = h('li', { testid: `item-${item.id}` }, title, ' ', state, ' ', percent, bar, detail, error, cancel, retry);
-    return { li, title, state, percent, bar, detail, error, cancel, retry };
+    const li = h(
+      'li', { testid: `item-${item.id}`, class: 'job' },
+      title, ' ', state, ' ', percent, bar, meter.el, detail, error, cancel, retry,
+    );
+    return { li, title, state, percent, bar, meter, detail, error, cancel, retry };
   }
 
   function update(): void {
@@ -52,9 +58,12 @@ export const createDownloads: ScreenFactory = (store) => {
       if (list.children[idx] !== row.li) list.insertBefore(row.li, list.children[idx] ?? null);
       const active = item.state === 'queued' || item.state === 'running';
       row.title.textContent = item.title;
+      row.title.title = item.title;
       row.state.textContent = STATE_LABELS[item.state];
       row.percent.textContent = formatPercent(item.percent);
       row.bar.value = Number.isFinite(item.percent) ? Math.min(100, Math.max(0, item.percent)) : 0;
+      row.meter.set(row.bar.value);
+      row.li.dataset.state = item.state;
       row.detail.textContent = item.state === 'running' ? ` ${formatSpeed(item.speedBps)} · ETA ${formatEta(item.etaSec)}` : '';
       const msg = item.state === 'failed' && item.error ? describeError(item.error, settings.destination).message : '';
       row.error.textContent = msg;

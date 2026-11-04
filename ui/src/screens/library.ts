@@ -1,25 +1,26 @@
 import type { DownloadItem } from '../engine';
 import { h } from '../lib/dom';
+import { equalsMark, titleLength } from '../lib/meter';
 import type { ScreenFactory } from './types';
 
 export const createLibrary: ScreenFactory = (store) => {
-  const empty = h('p', {}, 'No finished downloads yet.');
-  const list = h('ul', { 'aria-label': 'Finished downloads' });
-  const el = h('div', {}, h('h1', {}, 'Library'), empty, list);
+  const empty = h('p', { class: 'lead empty' }, 'No finished downloads yet.');
+  const list = h('ul', { 'aria-label': 'Finished downloads', class: 'shelf' });
+  const el = h('div', { class: 'screen screen-library' }, h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Library')), empty, list);
   let key = '';
 
   function row(item: DownloadItem): HTMLLIElement {
-    const open = h('button', { type: 'button', testid: 'item-open' }, 'Show in folder');
+    const open = h('button', { type: 'button', testid: 'item-open', class: 'button file-action' }, 'Show in folder');
     open.hidden = !store.canReveal || !item.filePath;
     open.addEventListener('click', () => {
       if (item.filePath) void store.revealFile(item.filePath);
     });
     return h(
       'li',
-      { testid: `item-${item.id}` },
-      h('strong', {}, item.title), ' ',
-      h('span', { testid: 'item-state' }, 'Done'), ' ',
-      h('span', {}, item.filePath ?? ''), ' ',
+      { testid: `item-${item.id}`, class: 'file' },
+      h('strong', { class: 'file-title', title: item.title, 'data-length': titleLength(item.title) }, item.title), ' ',
+      h('span', { class: 'file-state' }, equalsMark('file-mark'), h('span', { testid: 'item-state' }, 'Done')), ' ',
+      h('span', { class: 'file-path' }, item.filePath ?? ''), ' ',
       open,
     );
   }

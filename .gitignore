@@ -1,6 +1,7 @@
 node_modules/
 dist/
 build/
+!desktop/build/
 .superpowers/
 .taste-skill/
 android/.gradle/

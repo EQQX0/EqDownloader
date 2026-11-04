@@ -7,10 +7,11 @@ files:
   - src/renderer/fallback.html
   - package.json
 win:
+  icon: build/icon.ico
   target:
     - target: portable
       arch: x64
-  signAndEditExecutable: false
+  signExecutable: false
   forceCodeSigning: false
 portable:
   artifactName: EqDownload.exe

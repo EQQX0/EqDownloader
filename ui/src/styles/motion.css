@@ -1,0 +1,54 @@
+/* Motion: transform and opacity only. Every screen is rendered by script, so nothing here waits on a
+   script-set class: the animations are plain CSS that always run to their end state. Under reduced motion
+   the travel is dropped and only short fades remain. The meter's fill is moved from lib/meter.ts. */
+
+@keyframes eq-rise { from { opacity: 0; transform: translateY(1.25rem); } to { opacity: 1; transform: none; } }
+@keyframes eq-line { from { transform: translateY(105%); } to { transform: none; } }
+@keyframes eq-fade { from { opacity: 0; } to { opacity: 1; } }
+@keyframes eq-grow { from { transform: scaleX(0); } to { transform: none; } }
+
+@media (prefers-reduced-motion: no-preference) {
+  /* the screen name rises out of its own baseline, then the parts of the screen follow in reading order */
+  .monument-line { animation: eq-line 760ms var(--ease-out) both; }
+  .screen > :not(.monument) { animation: eq-rise var(--t-reveal) var(--ease-out) both; }
+  .screen > :nth-child(2) { animation-delay: 120ms; }
+  .screen > :nth-child(3) { animation-delay: 190ms; }
+  .screen > :nth-child(4) { animation-delay: 260ms; }
+  .screen > :nth-child(n + 5) { animation-delay: 330ms; }
+
+  /* lists arrive row by row */
+  .queue > .job, .shelf > .file, .settings > * { animation: eq-rise 600ms var(--ease-out) both; }
+  .queue > .job:nth-child(2), .shelf > .file:nth-child(2), .settings > :nth-child(2) { animation-delay: 70ms; }
+  .queue > .job:nth-child(3), .shelf > .file:nth-child(3), .settings > :nth-child(3) { animation-delay: 140ms; }
+  .queue > .job:nth-child(n + 4), .shelf > .file:nth-child(n + 4), .settings > :nth-child(n + 4) { animation-delay: 210ms; }
+
+  /* a new job draws its upper bar first: the original, at full length, before the copy starts */
+  .job .meter-top { animation: eq-grow 900ms var(--ease-out) 150ms both; transform-origin: left center; }
+
+  /* the probe result: the title, then the choices */
+  .probe > * { animation: eq-rise 560ms var(--ease-out) both; }
+  .probe > :nth-child(2) { animation-delay: 60ms; }
+  .probe > :nth-child(3) { animation-delay: 120ms; }
+  .probe > :nth-child(4) { animation-delay: 180ms; }
+
+  /* the field, then the action */
+  .link-form > * { animation: eq-rise 600ms var(--ease-out) both; }
+  .link-form > :first-child { animation-delay: 190ms; }
+  .link-form > :nth-child(2) { animation-delay: 260ms; }
+  .link-form > :nth-child(3) { animation-delay: 330ms; }
+  .screen > .link-form { animation: none; }
+
+  /* the emblem draws itself the way a job does: the upper bar, then the lower one */
+  .brand-mark .mark-bar { animation: eq-grow 700ms var(--ease-out) 200ms both; transform-origin: left center; }
+  .brand-mark .mark-bar + .mark-bar { animation-delay: 420ms; }
+
+  .error { animation: eq-rise 420ms var(--ease-out) both; }
+  .bar > *, .colophon > * { animation: eq-rise 640ms var(--ease-out) both; }
+  .bar > :nth-child(2) { animation-delay: 80ms; }
+  .colophon > :nth-child(2) { animation-delay: 90ms; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .screen > *, .probe > *, .link-form > *, .error, .queue > .job, .shelf > .file, .settings > * { animation: eq-fade 200ms ease both; }
+  *, *::before, *::after { transition-duration: 1ms !important; }
+}
