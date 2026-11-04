@@ -45,13 +45,11 @@ class AppUpdateTest {
     @Test
     fun readsTheApkHashFromSha256Sums() {
         val h = "a".repeat(64)
-        val sums = "${"b".repeat(64)}  EqDownload.exe
-$h  EqDownload.apk
-"
+        val other = "b".repeat(64)
+        val sums = "$other  EqDownload.exe\n$h  EqDownload.apk\n"
         assertEquals(h, AppUpdate.expectedHash(sums))
-        assertEquals(null, AppUpdate.expectedHash("${"b".repeat(64)}  EqDownload.exe
-"))
-        assertEquals(h, AppUpdate.expectedHash("${h.uppercase()} *EqDownload.apk"))
+        assertEquals(null, AppUpdate.expectedHash("$other  EqDownload.exe\n"))
+        assertEquals(h, AppUpdate.expectedHash(h.uppercase() + " *EqDownload.apk"))
     }
 
     @Test

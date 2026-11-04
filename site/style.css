@@ -191,6 +191,3 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 }
 
 @media (max-width: 40rem) { .bar .coffee { display: none; } } /* still in the footer */
-/* Buy Me a Coffee's own yellow and black. A plain link: their button script is not loaded, so visits send nothing to their servers. */
-.coffee-btn { background: #FFDD00; color: #000; margin-left: 0.5rem; }
-.coffee-btn:hover { filter: brightness(0.95); }
