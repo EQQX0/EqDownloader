@@ -190,3 +190,6 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
   summary::after, .button, .bar .action { transition: none; }
 }
 
+/* The Buy Me a Coffee button, sized to match the GitHub button beside it. Colours and text stay theirs. */
+.bar .coffee .bmc-btn { height: var(--target); min-height: var(--target); min-width: 0; padding: 0 1rem; font-size: 1.7rem; line-height: 1; border-radius: 0.6rem; gap: 0.4rem; }
+.bar .coffee .bmc-btn svg { height: 1.5rem !important; transform: none; }
