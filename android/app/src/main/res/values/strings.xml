@@ -1,0 +1,15 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">EqDownload</string>
+    <string name="title_activity_main">EqDownload</string>
+    <string name="package_name">app.eqdownload.android</string>
+    <string name="custom_url_scheme">app.eqdownload.android</string>
+    <string name="channel_progress">Download progress</string>
+    <string name="channel_done">Finished downloads</string>
+    <string name="notification_starting">Starting</string>
+    <string name="notification_one">Downloading, %1$d%%</string>
+    <string name="notification_many">Downloading %1$d files</string>
+    <string name="notification_done">Saved to Downloads/EqDownload: %1$s</string>
+    <string name="notification_failed">A download failed. Open the app for details.</string>
+    <string name="action_cancel">Cancel</string>
+</resources>

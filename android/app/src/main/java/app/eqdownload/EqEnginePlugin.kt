@@ -1,0 +1,174 @@
+package app.eqdownload
+
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
+import androidx.core.content.ContextCompat
+import com.getcapacitor.JSArray
+import com.getcapacitor.JSObject
+import com.getcapacitor.Plugin
+import com.getcapacitor.PluginCall
+import com.getcapacitor.PluginMethod
+import com.getcapacitor.annotation.CapacitorPlugin
+import com.getcapacitor.annotation.Permission
+import com.getcapacitor.annotation.PermissionCallback
+import com.yausername.youtubedl_android.YoutubeDL
+import com.yausername.youtubedl_android.YoutubeDLRequest
+import java.util.concurrent.Executors
+import org.json.JSONObject
+
+/**
+ * The `EqEngine` plugin: the Android side of the shared `Engine` interface.
+ * Every argument that comes from JavaScript is untrusted and validated here, not in the web layer.
+ * The `destination` argument of `start` is ignored: files always end in Downloads/EqDownload through MediaStore.
+ */
+@CapacitorPlugin(
+    name = "EqEngine",
+    permissions = [Permission(strings = [Manifest.permission.POST_NOTIFICATIONS], alias = "notifications")],
+)
+class EqEnginePlugin : Plugin() {
+    private val pool = Executors.newCachedThreadPool()
+    private var askedForNotifications = false
+    private val progressListener: (Item) -> Unit = { notifyListeners("progress", it.toJs()) }
+
+    override fun load() {
+        DownloadCenter.addListener(progressListener)
+        // Unpack python and ffmpeg ahead of the first download.
+        pool.execute { runCatching { YtDlpRuntime.ensure(context) } }
+    }
+
+    override fun handleOnDestroy() {
+        DownloadCenter.removeListener(progressListener)
+        super.handleOnDestroy()
+    }
+
+    @PluginMethod
+    fun probe(call: PluginCall) {
+        val url = try {
+            UrlGuard.requireHttpUrl(call.getString("url"))
+        } catch (e: Throwable) {
+            return reject(call, e)
+        }
+        pool.execute {
+            try {
+                YtDlpRuntime.ensure(context)
+                val spec = YtDlpArgs.probe(url)
+                val request = YoutubeDLRequest(spec.url)
+                for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
+                request.addCommands(listOf("--"))
+                val info = YoutubeDL.getInstance().getInfo(request)
+                val formats = JSArray()
+                for (f in info.formats.orEmpty()) {
+                    formats.put(
+                        JSObject()
+                            .put("id", f.formatId.orEmpty())
+                            .put("ext", f.ext.orEmpty())
+                            .put("height", f.height.takeIf { it > 0 } ?: JSONObject.NULL)
+                            .put("abr", f.abr.takeIf { it > 0 } ?: JSONObject.NULL)
+                            .put("filesize", (f.fileSize.takeIf { it > 0 } ?: f.fileSizeApproximate.takeIf { it > 0 }) ?: JSONObject.NULL),
+                    )
+                }
+                call.resolve(
+                    JSObject()
+                        .put("url", url)
+                        .put("title", info.title?.takeIf { it.isNotBlank() } ?: url)
+                        .put("thumbnail", info.thumbnail ?: JSONObject.NULL)
+                        .put("durationSec", info.duration.takeIf { it > 0 } ?: JSONObject.NULL)
+                        .put("formats", formats),
+                )
+            } catch (e: Throwable) {
+                reject(call, e)
+            }
+        }
+    }
+
+    @PluginMethod
+    fun start(call: PluginCall) {
+        // Validate before asking for anything.
+        try {
+            UrlGuard.requireHttpUrl(call.getString("url"))
+            Presets.spec(call.getString("preset") ?: "")
+        } catch (e: Throwable) {
+            return reject(call, e)
+        }
+        val needsAsk = Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        if (needsAsk && !askedForNotifications) {
+            askedForNotifications = true
+            requestPermissionForAlias("notifications", call, "notificationsResolved")
+        } else {
+            begin(call)
+        }
+    }
+
+    /** The download goes ahead whatever the answer: without the permission only the notification is hidden. */
+    @PermissionCallback
+    private fun notificationsResolved(call: PluginCall) = begin(call)
+
+    private fun begin(call: PluginCall) {
+        try {
+            val item = DownloadCenter.enqueue(context, call.getString("url"), call.getString("preset"))
+            try {
+                DownloadService.start(context, item.id)
+            } catch (e: Exception) {
+                DownloadCenter.fail(item.id, EngineException("unknown", "Android would not start the download service."))
+            }
+            call.resolve(JSObject().put("id", item.id))
+        } catch (e: Throwable) {
+            reject(call, e)
+        }
+    }
+
+    @PluginMethod
+    fun cancel(call: PluginCall) {
+        val id = call.getString("id")
+        if (id != null) DownloadCenter.cancel(id)
+        call.resolve()
+    }
+
+    @PluginMethod
+    fun list(call: PluginCall) {
+        val items = JSArray()
+        for (i in DownloadCenter.list()) items.put(i.toJs())
+        call.resolve(JSObject().put("items", items))
+    }
+
+    /** Runs only when the user presses Update engine. Nothing calls it automatically. */
+    @PluginMethod
+    fun updateEngine(call: PluginCall) {
+        pool.execute {
+            try {
+                YtDlpRuntime.ensure(context)
+                YoutubeDL.getInstance().updateYoutubeDL(context.applicationContext, YoutubeDL.UpdateChannel.STABLE)
+                val version = YoutubeDL.versionName(context.applicationContext)
+                    ?: YoutubeDL.version(context.applicationContext)
+                    ?: "unknown"
+                call.resolve(JSObject().put("version", version))
+            } catch (e: Throwable) {
+                reject(call, e)
+            }
+        }
+    }
+
+    /** Called by MainActivity for text shared from another app. Kept until the web view listens. */
+    fun emitShare(text: String) {
+        notifyListeners("share", JSObject().put("text", text), true)
+    }
+
+    private fun reject(call: PluginCall, e: Throwable) {
+        val err = if (e is IllegalArgumentException) EngineException("unknown", "Unknown quality preset.") else ErrorMapper.fromThrowable(e)
+        call.reject(err.message, err.code)
+    }
+
+    private fun Item.toJs(): JSObject = JSObject()
+        .put("id", id)
+        .put("url", url)
+        .put("title", title)
+        .put("preset", preset)
+        .put("state", state)
+        .put("percent", percent)
+        .put("speedBps", speedBps ?: JSONObject.NULL)
+        .put("etaSec", etaSec ?: JSONObject.NULL)
+        .put("filePath", filePath ?: JSONObject.NULL)
+        .put("error", error?.let { JSObject().put("code", it.code).put("message", it.message) } ?: JSONObject.NULL)
+}

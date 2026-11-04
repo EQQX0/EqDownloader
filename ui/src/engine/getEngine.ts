@@ -1,3 +1,5 @@
+import { Capacitor } from '@capacitor/core';
+import { CapacitorEngine } from './capacitor';
 import { FakeEngine } from './fake';
 import type { Engine } from './types';
 
@@ -10,10 +12,11 @@ export interface DesktopExtras {
 
 type MaybeBridge = Engine & Partial<DesktopExtras>;
 
-/** The shell's engine (`window.eq`) when present, else the fake one for browser use and tests. Task 7 adds Capacitor here. */
-export function getEngine(): Engine {
+/** The shell's engine (window.eq) on Electron, the Capacitor plugin engine on Android, else the fake one for browser use and tests. */
+export function getEngine(cap: { isNativePlatform(): boolean } = Capacitor): Engine {
   const bridge = (globalThis as { eq?: MaybeBridge }).eq;
-  return bridge ?? new FakeEngine({ delayMs: 400 });
+  if (bridge) return bridge;
+  return cap.isNativePlatform() ? new CapacitorEngine() : new FakeEngine({ delayMs: 400 });
 }
 
 /** Platform extras of an engine; each one is absent on the fake or mobile engines. */

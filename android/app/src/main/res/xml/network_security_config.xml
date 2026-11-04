@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<network-security-config>
+    <!-- No cleartext HTTP for anything that uses the platform network stack (the WebView and the Java code). -->
+    <base-config cleartextTrafficPermitted="false" />
+</network-security-config>
