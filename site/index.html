@@ -21,9 +21,11 @@
 <header class="bar">
   <nav aria-label="Main">
     <a class="logo" href="#top" aria-label="EqDownload, top of page"><img src="logo.png" alt="" width="56" height="56"></a>
-    <a href="#how">How it works</a>
-    <a href="#get">Get it</a>
-    <a href="#questions">Questions</a>
+    <span class="menu">
+      <a href="#how">How it works</a>
+      <a href="#get">Get it</a>
+      <a href="#questions">Questions</a>
+    </span>
     <span class="coffee"><script type="text/javascript" src="https://cdnjs.buymeacoffee.com/1.0.0/button.prod.min.js" data-name="bmc-button" data-slug="eqqx2" data-color="#FFDD00" data-emoji=""  data-font="Cookie" data-text="Buy me a coffee" data-outline-color="#000000" data-font-color="#000000" data-coffee-color="#ffffff" ></script></span>
     <a class="action" href="https://github.com/EQQX0/EqDownloader">GitHub</a>
   </nav>
@@ -41,8 +43,10 @@
       <form id="finder" class="finder" data-reveal>
         <label class="visually-hidden" for="link">Link to a video or audio page</label>
         <input id="link" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://" required>
-        <button class="button paste" type="button" id="paste" hidden>Paste</button>
-        <button class="button" type="submit">Find</button>
+        <div class="finder-actions">
+          <button class="button paste" type="button" id="paste" hidden>Paste</button>
+          <button class="button" type="submit">Find</button>
+        </div>
       </form>
       <div id="result" class="result" role="status" aria-live="polite"></div>
     </div>

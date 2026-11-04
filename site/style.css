@@ -68,8 +68,10 @@ a { color: inherit; }
 
 /* Finder: one field, one action, the result below. */
 .finder { display: flex; gap: 0.75rem; flex-wrap: wrap; }
-.finder input { flex: 1 1 14rem; min-height: var(--target); padding: 0 1rem; background: var(--surface); color: var(--ink); border: 0; border-radius: 0; font: 400 var(--body)/1.2 var(--font-text); -webkit-appearance: none; appearance: none; }
-.finder input::placeholder { color: var(--muted); }
+.finder input { flex: 1 1 100%; min-height: var(--target); padding: 0 1rem; background: var(--surface); color: var(--ink); border: 0; border-radius: 0; font: 400 var(--body)/1.2 var(--font-text); -webkit-appearance: none; appearance: none; }
+.finder input::placeholder { color: var(--ink); opacity: 0.35; } /* an example, not text to type after */
+.finder-actions { display: flex; gap: 0.75rem; flex: 1 1 100%; }
+.finder-actions .button { flex: 0 0 auto; min-width: 7rem; }
 .finder .button { border: 0; font: 500 var(--body)/1 var(--font-text); cursor: pointer; }
 .finder .paste { background: var(--track); color: var(--ink); }
 .finder .paste[hidden] { display: none; }
@@ -164,7 +166,6 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 
 @media (max-width: 760px) {
   .bar nav { justify-content: space-between; }
-  .bar a[href='#how'] { display: none; }
   .bar nav { gap: 0.25rem 1rem; }
   .how .column { margin-left: 0; max-width: none; }
   .faq-list { margin-left: 0; }
@@ -193,3 +194,18 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 /* The Buy Me a Coffee button, sized to match the GitHub button beside it. Colours and text stay theirs. */
 .bar .coffee .bmc-btn { height: var(--target); min-height: var(--target); min-width: 0; padding: 0 1rem; font-size: 1.7rem; line-height: 1; border-radius: 0.6rem; gap: 0.4rem; }
 .bar .coffee .bmc-btn svg { height: 1.5rem !important; transform: none; }
+
+/* Bar on any width: logo and the two buttons on the first line, the text links on their own line when space is short. */
+.bar .menu { display: flex; flex-wrap: wrap; gap: 0.25rem 1.5rem; }
+.bar .coffee { display: inline-flex; align-items: center; }
+@media (max-width: 47.99rem) {
+  .bar nav { gap: 0.25rem 0.75rem; }
+  .bar .menu { order: 3; flex: 1 0 100%; justify-content: space-between; gap: 0.25rem 1rem; }
+  .bar .coffee .bmc-btn { font-size: 1.45rem; padding: 0 0.75rem; }
+  .finder-actions .button { flex: 1 1 0; min-width: 0; }
+}
+@media (max-width: 22.5rem) {
+  .bar .coffee .bmc-btn { font-size: 1.25rem; padding: 0 0.5rem; gap: 0.25rem; }
+  .bar .logo img { width: 3rem; height: 3rem; }
+  .bar .action { padding: 0 0.75rem; }
+}

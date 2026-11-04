@@ -172,7 +172,7 @@
     const bar = document.createElement('div'); bar.className = 'loader'; bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'Reading the link');
     bar.append(document.createElement('span'), document.createElement('span'));
     out.append(lp, bar);
-    const go = form.querySelector('button');
+    const go = form.querySelector('button[type=submit]');
     go.disabled = true;
     try {
       const res = await fetch('/api/probe?url=' + encodeURIComponent(link));
