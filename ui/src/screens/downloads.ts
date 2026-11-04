@@ -1,4 +1,5 @@
 import type { DownloadItem } from '../engine';
+import { clampedText, type ClampedText } from '../lib/clamp';
 import { h } from '../lib/dom';
 import { formatEta, formatPercent, formatSpeed } from '../lib/format';
 import { STATE_LABELS } from '../lib/labels';
@@ -9,6 +10,7 @@ import type { ScreenFactory } from './types';
 interface Row {
   li: HTMLLIElement;
   title: HTMLElement;
+  titleText: ClampedText;
   state: HTMLElement;
   percent: HTMLElement;
   bar: HTMLProgressElement;
@@ -26,10 +28,13 @@ export const createDownloads: ScreenFactory = (store) => {
   const rows = new Map<string, Row>();
 
   function build(item: DownloadItem): Row {
-    const title = h('strong', { class: 'job-title' });
+    // Each job's progress bar is named by its own title, so a screen reader can tell jobs apart.
+    const titleId = `job-title-${item.id.replace(/[^\w-]/g, '_')}`;
+    const titleText = clampedText();
+    const title = h('strong', { class: 'job-title', id: titleId }, titleText.el);
     const state = h('span', { testid: 'item-state', class: 'job-state' });
     const percent = h('span', { testid: 'item-percent', class: 'job-percent' });
-    const bar = h('progress', { max: '100', value: '0', 'aria-label': 'Progress', class: 'visually-hidden' });
+    const bar = h('progress', { max: '100', value: '0', 'aria-labelledby': titleId, class: 'visually-hidden' });
     const meter = createMeter('job-meter');
     const detail = h('span', { class: 'job-detail' });
     const error = h('p', { testid: 'item-error', class: 'job-error' });
@@ -41,7 +46,7 @@ export const createDownloads: ScreenFactory = (store) => {
       'li', { testid: `item-${item.id}`, class: 'job' },
       title, ' ', state, ' ', percent, bar, meter.el, detail, error, cancel, retry,
     );
-    return { li, title, state, percent, bar, meter, detail, error, cancel, retry };
+    return { li, title, titleText, state, percent, bar, meter, detail, error, cancel, retry };
   }
 
   function update(): void {
@@ -57,8 +62,7 @@ export const createDownloads: ScreenFactory = (store) => {
       }
       if (list.children[idx] !== row.li) list.insertBefore(row.li, list.children[idx] ?? null);
       const active = item.state === 'queued' || item.state === 'running';
-      row.title.textContent = item.title;
-      row.title.title = item.title;
+      row.titleText.set(item.title);
       row.state.textContent = STATE_LABELS[item.state];
       row.percent.textContent = formatPercent(item.percent);
       row.bar.value = Number.isFinite(item.percent) ? Math.min(100, Math.max(0, item.percent)) : 0;

@@ -1,4 +1,5 @@
 import type { Preset } from '../engine';
+import { clampedText } from '../lib/clamp';
 import { h } from '../lib/dom';
 import { safeImageSrc } from '../lib/image';
 import { PRESET_LABELS } from '../lib/labels';
@@ -38,7 +39,8 @@ export const createHome: ScreenFactory = (store) => {
   let selected: Preset | null = null;
   let shownUrl: string | null = null;
   const buttons = new Map<Preset, HTMLButtonElement>();
-  const title = h('h2', { id: 'probe-heading', testid: 'probe-title', class: 'probe-title' });
+  const titleText = clampedText();
+  const title = h('h2', { id: 'probe-heading', testid: 'probe-title', class: 'probe-title' }, titleText.el);
   const thumb = h('img', { alt: '', width: '160', class: 'probe-thumb' });
   const presetGroup = h('div', { role: 'group', 'aria-label': 'Quality', class: 'presets' });
   const start = h('button', { type: 'button', testid: 'start-button', class: 'button button-primary start' }, 'Download');
@@ -70,8 +72,7 @@ export const createHome: ScreenFactory = (store) => {
       shownUrl = null;
       return;
     }
-    title.textContent = probe.title;
-    title.title = probe.title;
+    titleText.set(probe.title);
     title.dataset.length = titleLength(probe.title);
     const img = safeImageSrc(probe.thumbnail);
     if (img) {

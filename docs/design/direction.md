@@ -1,36 +1,37 @@
 # EqDownload visual direction
 
-The look of the app UI (`ui/`), shared by the Windows shell and the Android WebView. Dealt with the
-taste skill (`design-taste-frontend`). UX rules came from UI/UX Pro Max. Dated 2026-11-04.
+This file records the look of the app UI (`ui/`), which the Windows shell and the Android WebView share.
+The taste skill (`design-taste-frontend`) dealt the direction; UI/UX Pro Max supplied the UX rules.
+Dated 2026-11-04.
 
 ## The deal
 
 - Command: `draw.mjs --sector consumer-app --brief "EqDownload: a private desktop and Android app that saves a video or its audio from a pasted link, with yt-dlp as the engine" --sections list,how-it-works --have product-ui --options 3`.
   The brief asked for `--sector tools`. That sector does not exist (`draw.mjs --list sectors`), so
-  `consumer-app` was the closest.
+  I used the closest one, `consumer-app`.
 - Dealt: `loud-flat-poster`, `name-as-monument`, `page-is-the-object`.
 - **Chosen: `name-as-monument`, seed `376266133`.** Reprint it with `draw.mjs --show`; the saved copy is
   in `.taste-skill/direction.json`, which git ignores.
-- Why this one: the inventory's strongest item is the name. "Eq" reads as the equals sign. A
-  direction built on treating the name's letters as material can carry that. `page-is-the-object`
+- Why this one: the name is the inventory's strongest item, and "Eq" reads as the equals sign. A
+  direction that treats the name's letters as material can carry it. `page-is-the-object`
   needed a printed artefact. The only one this subject has is yt-dlp's console progress line, and
   that is monospace, which the house rules ban. `loud-flat-poster` wants short statements, and a
   utility has nothing to proclaim.
 - Sheet: hero "Film title, bottom edge"; type **Unbounded / Onest**; palette **Bottle green, gold**;
   sections "One item per poster line" (list) and "Run-in column" (how-it-works); motion "Slow
   crossfade"; photographs "Architecture" set.
-- No slot was redrawn. The parts of the sheet that cannot apply to an app, and what took their place:
+- I redrew no slot. Five parts of the sheet could not apply to an app; here is what replaced each:
   - *Hero photograph, slow crossfade, Architecture photographs.* The app has no photographs, and the
-    only picture it ever shows is the video's own thumbnail. The signature move is the equals meter
-    (below). No stock photograph stands in for anything.
-  - *Hero anchored to the bottom edge.* Each screen's name is the monument, but at the top. It
-    spans the width, and the controls sit below it, where the hand and the eye are.
+    only picture it ever shows is the video's own thumbnail. The equals meter (below) takes the
+    signature move. No stock photograph stands in for anything.
+  - *Hero anchored to the bottom edge.* Each screen's name is the monument, set at the top. It
+    spans the width; the controls sit below it, where hand and eye go first.
   - *List blueprint* became Library: one finished file per line, the title large, its fact (the
     path) beneath it, the one action at the right.
   - *Run-in column* became Settings: one column starting at the 4th of 12 columns. Each setting
     opens with its name as a run-in in weight 500.
-  - The name comes back at full width in the footer, in the inverse colours, as the sheet asks. It
-    carries the privacy promise.
+  - As the sheet asks, the name returns at full width in the footer, in the inverse colours, beside
+    the privacy promise.
 
 ## Inventory (things only this subject has)
 
@@ -52,19 +53,20 @@ taste skill (`design-taste-frontend`). UX rules came from UI/UX Pro Max. Dated 2
 > In EqDownload, **the equals sign in its name** becomes **the progress meter**: two flat bars, the
 > upper one the original, the lower one the copy on disk, filling until the two are equal.
 
-- **Competitor test.** "In 4K Video Downloader, the equals sign in its name becomes the meter" does
-  not work: no other downloader has the sign in its name. The idea belongs to this subject. **Pass.**
-- **The live thing** is the meter on Downloads. It runs on the real numbers. When a job is done,
+- **Competitor test.** "In 4K Video Downloader, the equals sign in its name becomes the meter"
+  fails, because no other downloader has the sign in its name. **Pass.**
+- **The live thing** is the meter on Downloads. It runs on yt-dlp's real numbers. When a job is done,
   its two bars read as "=". A failed or cancelled job keeps both bars in the muted ink and says
   Failed or Cancelled in words. The same two bars are the emblem in the header, the Done mark in
   Library, the app icon (`design/icon.svg`), and the bar under the current tab and the chosen preset.
 - On a phone it is the same meter at full width. The percent sits beside it in the display face.
-  Without motion the bar simply stands at its value.
+  With motion off, the bar stands at its value.
 
 ## Tokens
 
-All colours are in `ui/src/styles/tokens.css`. They use `light-dark()` and switch on
-`prefers-color-scheme`. Dark is the dealt sheet. Light swaps the proportions: a pale sage ground
+`ui/src/styles/tokens.css` holds every colour as a plain custom property: the light palette on
+`:root`, the dark palette in `@media (prefers-color-scheme: dark)`. The file avoids `light-dark()`,
+which needs Chromium 123, so older Android WebViews still get the palette. Dark is the dealt sheet. Light swaps the proportions: a pale sage ground
 with green ink. Gold stays on the action's text and on the inverse footer. Neither scheme uses a
 banned family (cream, terracotta, violet).
 
@@ -92,52 +94,53 @@ Contrast, computed with the WCAG formula (body text needs 4.5:1):
 | Check link (ground on ink) | 11.59 | 9.50 |
 | inverse-ink on inverse (footer) | 9.50 | 9.50 |
 | meter fill on track (non-text, needs 3:1) | 8.24 | 5.41 |
-| failed fill (muted) on track | 5.52 | 4.43 |
+| failed fill (muted) on track (non-text, needs 3:1) | 5.52 | 4.43 |
 
-The track itself is 1.41:1 (light) and 1.76:1 (dark) against the ground. That is deliberate: it is
-the empty half of a bar, not a boundary that carries information. The value is carried by the fill,
-by the percent text and by the hidden native `<progress>`.
+The track measures 1.41:1 (light) and 1.76:1 (dark) against the ground. It is the empty half of a
+bar and carries no information. The fill, the percent text and the hidden native `<progress>` carry
+the value.
 
 **Type.** Two faces, five sizes:
 
 | Step | Size | Use |
 | --- | --- | --- |
 | `--step-monument` | clamp(36px, 10.4vw, 184px) | screen names (Unbounded 800, uppercase, -0.045em, leading 0.92); the footer name at min(9.4vw, 168px) |
-| `--step-head` | 32-64px | short video titles, percent numerals (Unbounded 800) |
-| `--step-lead` | 20-26px | intro line, long titles, error text, the Download button |
+| `--step-head` | 32-64px | short video titles (Onest 500), percent numerals (Unbounded 800) |
+| `--step-lead` | 20-26px | intro line, long titles (Onest 500), error text, the Download button |
 | `--step-body` | 17-19px | running text, controls (Onest 400/500) |
 | `--step-small` | 14-15px | defined for captions; no text uses it in the current screens |
 
-Video titles are as long as the site makes them. The title's length sets its step: up to 40
-characters takes head, up to 90 takes lead, and longer takes body. Every title is clamped to two
-lines, and the full text is in its `title` attribute.
+Sites set titles of any length, so the length picks the step: up to 40 characters takes head, up
+to 90 takes lead, and longer takes body. A clamp holds every title to two lines. When the clamp cuts
+one, `lib/clamp.ts` turns the text into a toggle (`role="button"`, `tabindex="0"`,
+`aria-expanded`); a tap, Enter or Space lifts the clamp. Titles that fit stay plain text.
 
-**Space.** Margins clamp(16px, 2.2vw, 32px) plus the safe-area insets. Gutter clamp(16px, 2vw,
+**Space.** Margins run clamp(16px, 2.2vw, 32px) plus the safe-area insets. Gutter clamp(16px, 2vw,
 32px). Spacing steps are 8, 16, 24, 32, 48 and 80px. A meter bar is 12px thick. Touch targets are
 44px minimum, and 48px on `pointer: coarse`; the main buttons are 56px. Corners are square
-everywhere. There are no shadows, gradients or hairlines. Surfaces differ by one tone step; the
+everywhere. The UI has no shadows, gradients or hairlines. Surfaces differ by one tone step; the
 field and the error box carry a thick ink bar.
 
 **Motion** (`ui/src/styles/motion.css`, `ui/src/lib/meter.ts`). Transform and opacity only:
 
-- The meter fill moves through the Web Animations API, so no `style` attribute is written. It takes
-  700ms with ease-out, starting from the bar's current position.
+- The Web Animations API moves the meter fill, so the code writes no `style` attribute. Each move
+  takes 700ms with ease-out and starts from the bar's current position.
 - A new job draws its upper bar first.
 - Each screen name rises out of its own baseline (a masked line). The parts of the screen follow in
   reading order, 60-90ms apart. Lists arrive row by row.
 - The emblem draws its two bars on load.
 - Every control responds to press (scale 0.97), hover (one tone step, behind `hover: hover`) and
   focus (a 3px ink ring, offset 3px).
-- Under `prefers-reduced-motion: reduce`, travel is dropped. Only 200ms fades remain, and the meter
-  jumps straight to its value.
-- Every screen is rendered by script, so nothing waits on a script-set class. All the animations
-  are plain CSS with `both` fill and always end visible.
+- Under `prefers-reduced-motion: reduce`, the CSS drops all travel. Only 200ms fades remain, and the
+  meter jumps to its value.
+- Script renders every screen, so no animation waits on a script-set class. All of them are plain
+  CSS with `both` fill and end visible.
 
 ## Fonts and licences
 
-The fonts are self-hosted: woff2 files in `ui/src/assets/fonts/`, which Vite emits beside the
-bundle. Only the Latin and Latin Extended subsets are included. Titles in other scripts fall back
-to the system sans. The licence texts ship in `ui/public/fonts/` and are copied to `dist/fonts/`.
+The app self-hosts its fonts: woff2 files in `ui/src/assets/fonts/`, which Vite emits beside the
+bundle. I kept the Latin and Latin Extended subsets only; titles in other scripts fall back to the
+system sans. The licence texts live in `ui/public/fonts/`, and the build copies them to `dist/fonts/`.
 
 | Face | Weights | Licence | Source |
 | --- | --- | --- | --- |
@@ -145,35 +148,35 @@ to the system sans. The licence texts ship in `ui/public/fonts/` and are copied 
 | Onest | 400, 500 | SIL Open Font License 1.1, (c) 2021 The Onest Project Authors | `@fontsource/onest` 5.3.1 |
 
 **CSP.** The policy has no `font-src`, so fonts fall back to `default-src 'self'`. That covers them
-over http (Vite) and over `file://` (Electron `loadFile`). The packaged UI was checked in Electron
+over http (Vite) and over `file://` (Electron `loadFile`). I loaded the packaged UI in Electron
 under the production CSP header. Unbounded 800, Onest 400 and Onest 500 all report `loaded`, with
 no CSP message other than the existing `frame-ancestors`-in-meta notice. **No CSP change was
-needed.** There is no Google Fonts request, no remote CSS and no inline script.
+needed.** The app makes no Google Fonts request and loads no remote CSS or inline script.
 
 ## Inspector waivers
 
-These rules exist for marketing pages. Each is waived with `--allow` for one stated reason:
+These rules exist for marketing pages. I waived each with `--allow` for the reason given:
 
 | Rule | Why it does not apply to this app |
 | --- | --- |
-| `few-pictures` (FAIL) | The floor of four real pictures is for a page that sells a place or product. An app screen shows the user's own content. The one real picture this UI ever has is the probed video's thumbnail, and it is shown large. Adding stock or archive photographs to a downloader would be decoration, and every photograph would also be a network or bundle cost. |
+| `few-pictures` (FAIL) | The floor of four real pictures serves a page that sells a place or product. An app screen shows the user's own content. The one real picture this UI ever has is the probed video's thumbnail, which it shows large. Stock or archive photographs in a downloader would be decoration, and each would cost network or bundle size. |
 | `no-real-pictures` (WARN) | Same reason as `few-pictures`. |
 | `no-footage` (WARN) | The app plays no video. A looping clip in a utility costs CPU and battery and has nothing to show. |
 
-Kept as a WARN and defended rather than waived:
+Kept as a WARN and defended:
 
 - **`still-page`** (WARN; 11-12 moving elements against a target of 16). The 8-element floor is
-  met on every screen. The rest of the target asks for marketing choreography. The UI/UX Pro Max
+  met on every screen; the rest of the target asks for marketing choreography. The UI/UX Pro Max
   rule "Excessive Motion" asks an app view to animate one or two key elements. Here every screen
   moves its name, its parts in order, and its controls on press, and Downloads has the live meter.
   More motion on screens a user opens dozens of times a day would be noise.
 
 Lint WARNs, defended:
 
-- **`numbering`**: `padStart(2, '0')` in `lib/format.ts` formats the ETA clock (`0:38`). It is not
-  an index label.
+- **`numbering`**: `padStart(2, '0')` in `lib/format.ts` formats the ETA clock (`0:38`) and builds
+  no index labels.
 - **`em-dash`**: the five dashes are the "value unknown" placeholder in `lib/format.ts` and its unit
-  tests. They are not prose.
+  tests, outside any prose.
 
 These ornament rules hold in full: no eyebrows, no monospace, no index numbers, no thin rules, no
 gradients, no shadows at rest, no glass, no emoji, no icon-topped card rows, no tiny tracked capitals,
@@ -182,27 +185,27 @@ no styled accent words, two typefaces.
 ## UI/UX Pro Max
 
 - `search.py "utility video downloader app" --design-system` returned a landing-page system: hero
-  plus testimonials, rose and orange, Inter with Playfair. It does not fit an app with no social
-  proof, and it conflicts with the dealt direction. Its palette and fonts were not used.
-- The `--domain ux` results were applied:
+  plus testimonials, rose and orange, Inter with Playfair. An app with no social proof has no use
+  for it, and it conflicts with the dealt direction, so I left its palette and fonts out.
+- I applied these `--domain ux` results:
   - Touch targets of 44px, or 48 on coarse pointers, with an 8px gap.
-  - A visible label on the link field. The field is described by the hint and by the error text
-    (`aria-describedby`).
+  - A visible label on the link field; `aria-describedby` points the field at the hint and the error
+    text.
   - Feedback while checking a link: the status line plus `aria-busy`.
   - Errors keep `role="alert"`.
-  - The focus ring is never removed, and no sticky bar covers it: the phone tabs sit in the flow,
-    not fixed over content.
-  - Reduced motion is honoured.
+  - The focus ring stays, and no sticky bar covers it: the phone tabs sit in the flow.
+  - The CSS honours reduced motion.
+  - Each job's hidden `<progress>` takes its name from that job's title (`aria-labelledby`).
 - Pre-delivery checklist: see the task report (`.superpowers/sdd/2026-11-04-eqdownload/task-6-report.md`).
 
 ## Look-and-fix results
 
-Screens are driven with a scripted engine by `.taste-skill/capture.mjs`. The states are Home
+`.taste-skill/capture.mjs` drives the screens with a scripted engine. The states are Home
 empty, Home with a probed link and thumbnail, Home with an error, Downloads (running at 45%, a
 network failure with Retry, a finished job, and an outdated-engine failure that raises the error
-box), Library with three files, and Settings. Each state is captured in light and dark at 1440,
-768 and 390px. For every state and scheme, a static snapshot is run through `inspect.mjs`. The
-live preview is also inspected.
+box), Library with three files, and Settings. It captures each state in light and dark at 1440,
+768 and 390px and writes a static snapshot per state and scheme for `inspect.mjs`, which pins the
+scheme by copying that scheme's tokens onto `:root`. `inspect.mjs` also ran on the live preview.
 
 **Final inspector result:** 0 FAIL on all 12 snapshot runs and on the live run. The remaining
 WARNs are `still-page` (defended above) on five of the six states. Downloads and Home-with-probe
@@ -216,8 +219,8 @@ are clean.
 | 2 | 7.5 | 8 | 8 | 7 | 7.7 | the footer stretched when the error box was hidden (fixed grid rows); Check link read as a second field (filled while it is the action, steps back once Download appears); Library rows ran 1376px wide (9 of 12 columns, titles balanced) |
 | 3 | 7.5 | 8 | 8 | 7 | 7.7 | probe column rows spread apart beside a thumbnail (rows pinned to the top); scrollbar colours follow the scheme |
 
-The rubric's photograph cap (design at most 6.5 with under four pictures) is not applied, because
-the floor is waived above. What still falls short: Home has empty ground to the right of the form
+I left out the rubric's photograph cap (design at most 6.5 with under four pictures), since the
+waiver above covers the floor. What still falls short: Home has empty ground to the right of the form
 at 1440px, because the screen holds only one field. A long title on the probe drops to the lead
 size, which weakens that screen's hierarchy.
 

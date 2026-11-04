@@ -1,4 +1,5 @@
 import type { DownloadItem } from '../engine';
+import { clampedText } from '../lib/clamp';
 import { h } from '../lib/dom';
 import { equalsMark, titleLength } from '../lib/meter';
 import type { ScreenFactory } from './types';
@@ -15,10 +16,12 @@ export const createLibrary: ScreenFactory = (store) => {
     open.addEventListener('click', () => {
       if (item.filePath) void store.revealFile(item.filePath);
     });
+    const titleText = clampedText();
+    titleText.set(item.title);
     return h(
       'li',
       { testid: `item-${item.id}`, class: 'file' },
-      h('strong', { class: 'file-title', title: item.title, 'data-length': titleLength(item.title) }, item.title), ' ',
+      h('strong', { class: 'file-title', 'data-length': titleLength(item.title) }, titleText.el), ' ',
       h('span', { class: 'file-state' }, equalsMark('file-mark'), h('span', { testid: 'item-state' }, 'Done')), ' ',
       h('span', { class: 'file-path' }, item.filePath ?? ''), ' ',
       open,

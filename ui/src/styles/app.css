@@ -176,10 +176,6 @@
   padding-top: var(--space-2);
 }
 .probe-title {
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
   max-width: 22ch;
   font-size: var(--step-head);
   font-weight: 500;
@@ -191,6 +187,10 @@
 .file-title[data-length='long'] { max-width: 40ch; font-size: var(--step-lead); line-height: 1.25; letter-spacing: -0.01em; }
 .probe-title[data-length='very-long'],
 .file-title[data-length='very-long'] { max-width: 62ch; font-size: var(--step-body); line-height: 1.4; letter-spacing: 0; }
+/* titles hold to two lines; a cut title becomes a toggle (lib/clamp.ts) that lifts the clamp */
+.clamp { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+.clamp[role='button'] { cursor: pointer; }
+.clamp[aria-expanded='true'] { display: block; overflow: visible; -webkit-line-clamp: unset; }
 .probe-thumb { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; background: var(--surface); }
 .presets { display: flex; flex-wrap: wrap; gap: var(--space-1); }
 .preset {
@@ -232,10 +232,6 @@
 .job-title {
   grid-column: 1 / 3;
   grid-row: 1;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
   font-size: var(--step-lead);
   font-weight: 500;
   line-height: 1.25;
@@ -280,10 +276,6 @@
 }
 .file-title {
   grid-column: 1;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 2;
-  overflow: hidden;
   font-size: var(--step-head);
   font-weight: 500;
   line-height: 1.04;

@@ -58,6 +58,10 @@ async function installStubEngine(page: Page): Promise<void> {
       async probe(url: string) {
         if (url.includes('unsupported')) throw { code: 'unsupported', message: 'x' };
         if (url.includes('outdated')) throw { code: 'outdated', message: 'x' };
+        if (url.includes('long')) {
+          const title = 'A very long video title that keeps going well past what two lines can hold on a narrow phone screen, and then some more words';
+          return { url, title, thumbnail: null, durationSec: 5, formats: [] };
+        }
         return { url, title: 'Stub video', thumbnail: null, durationSec: 5, formats: [] };
       },
       async start(url: string, preset: string) {
@@ -118,6 +122,31 @@ for (const [kind, message] of [
     await expect(tid(page, 'update-engine')).toHaveCount(1);
   });
 }
+
+test('a title cut at two lines can be opened by keyboard and tap', async ({ page }) => {
+  await installStubEngine(page);
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/');
+  await tid(page, 'link-input').fill('https://example.test/long');
+  await tid(page, 'link-submit').click();
+  const toggle = tid(page, 'probe-title').getByRole('button');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('a short title stays plain text', async ({ page }) => {
+  await installStubEngine(page);
+  await page.goto('/');
+  await tid(page, 'link-input').fill('https://example.test/v');
+  await tid(page, 'link-submit').click();
+  await expect(tid(page, 'probe-title')).toHaveText('Stub video');
+  await page.waitForTimeout(300); // let the clamp measure run
+  await expect(tid(page, 'probe-title').getByRole('button')).toHaveCount(0);
+});
 
 test('desktop bridge supplies the default destination and Show in folder', async ({ page }) => {
   await installStubEngine(page);
