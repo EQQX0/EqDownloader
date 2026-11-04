@@ -41,4 +41,27 @@ class AppUpdateTest {
     @Test fun refusesAReleaseWithoutAnApk() {
         assertThrows(IllegalStateException::class.java) { AppUpdate.parseRelease("""{"tag_name":"v0.1.6","assets":[]}""") }
     }
+
+    @Test
+    fun readsTheApkHashFromSha256Sums() {
+        val h = "a".repeat(64)
+        val sums = "${"b".repeat(64)}  EqDownload.exe
+$h  EqDownload.apk
+"
+        assertEquals(h, AppUpdate.expectedHash(sums))
+        assertEquals(null, AppUpdate.expectedHash("${"b".repeat(64)}  EqDownload.exe
+"))
+        assertEquals(h, AppUpdate.expectedHash("${h.uppercase()} *EqDownload.apk"))
+    }
+
+    @Test
+    fun hashesAFile() {
+        val f = java.io.File.createTempFile("eq", ".bin")
+        try {
+            f.writeText("abc")
+            assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", AppUpdate.sha256(f))
+        } finally {
+            f.delete()
+        }
+    }
 }

@@ -33,13 +33,14 @@ class ManifestTest {
     private val application = source.getElementsByTagName("application").item(0) as Element
 
     @Test
-    fun permissionsAreExactlyTheFour() {
+    fun permissionsAreExactlyTheFive() {
         assertEquals(
             setOf(
                 "android.permission.INTERNET",
                 "android.permission.FOREGROUND_SERVICE",
                 "android.permission.FOREGROUND_SERVICE_DATA_SYNC",
                 "android.permission.POST_NOTIFICATIONS",
+                "android.permission.REQUEST_INSTALL_PACKAGES",
             ),
             source.permissions(),
         )

@@ -34,7 +34,7 @@ Settings shows the app version. Press Check for app update to ask GitHub for the
 
 **Windows.** If a newer version exists, the button becomes Install. The app downloads `EqDownload.exe`, checks it against the release's `SHA256SUMS.txt`, then restarts into the new version. It only replaces the portable exe it was started from, and refuses a file that fails the checksum.
 
-**Android.** Install opens the new APK's download in your browser. Android then asks you to install it. It only installs over this app when it carries the same signing key.
+**Android.** Install downloads the new APK inside the app and checks it against the release's `SHA256SUMS.txt`. Then Android's installer asks you to confirm. The first time, Android also asks you to allow installs from EqDownload; allow it and press Install again. It only installs over this app when it carries the same signing key.
 
 ## When a download fails
 

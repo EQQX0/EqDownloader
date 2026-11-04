@@ -161,16 +161,28 @@ class EqEnginePlugin : Plugin() {
     }
 
     /**
-     * Opens the newest APK's download in the browser. The link is read from GitHub again here, never taken from
-     * JavaScript. Android installs it over this app only when it carries the same signing key.
+     * Downloads the newest APK inside the app, checks its SHA-256 against the release's SHA256SUMS.txt, then hands it
+     * to Android's installer. The link is read from GitHub again here, never taken from JavaScript. Android installs
+     * it over this app only when it carries the same signing key. The first time, Android asks you to allow
+     * installs from EqDownload; allow it and press Install again.
      */
     @PluginMethod
     fun installAppUpdate(call: PluginCall) {
         pool.execute {
             try {
                 val latest = AppUpdate.fetchLatest()
-                val intent = Intent(Intent.ACTION_VIEW, Uri.parse(latest.apkUrl)).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                context.startActivity(intent)
+                if (!context.packageManager.canRequestPackageInstalls()) {
+                    val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                    context.startActivity(settings)
+                    throw EngineException("unknown", "Allow installs from EqDownload on the screen that opened, come back, and press Install again.")
+                }
+                val apk = AppUpdate.download(latest, java.io.File(context.cacheDir, "updates"))
+                val uri = androidx.core.content.FileProvider.getUriForFile(context, "${context.packageName}.updates", apk)
+                val install = Intent(Intent.ACTION_VIEW)
+                    .setDataAndType(uri, "application/vnd.android.package-archive")
+                    .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(install)
                 call.resolve(JSObject().put("version", latest.version))
             } catch (e: Throwable) {
                 reject(call, e)

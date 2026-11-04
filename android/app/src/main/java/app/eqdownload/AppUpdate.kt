@@ -1,6 +1,8 @@
 package app.eqdownload
 
+import java.io.File
 import java.net.HttpURLConnection
+import java.security.MessageDigest
 import java.net.URL
 import org.json.JSONObject
 
@@ -10,8 +12,69 @@ object AppUpdate {
     private const val DOWNLOAD_PREFIX = "https://github.com/EQQX0/EqDownloader/releases/download/"
     private const val APK = "EqDownload.apk"
     private const val MAX_JSON = 1_000_000
+    private const val SUMS = "SHA256SUMS.txt"
+    private const val MAX_APK = 200L * 1024 * 1024
 
     data class Release(val version: String, val apkUrl: String)
+
+    /** The SHA-256 listed for EqDownload.apk in the release's SHA256SUMS.txt, lowercase, or null. */
+    fun expectedHash(sums: String): String? =
+        sums.lineSequence().mapNotNull { Regex("^([0-9a-fA-F]{64})\s+\*?${Regex.escape(APK)}\s*$").find(it.trim())?.groupValues?.get(1)?.lowercase() }.firstOrNull()
+
+    fun sha256(file: File): String {
+        val md = MessageDigest.getInstance("SHA-256")
+        file.inputStream().use { i ->
+            val buf = ByteArray(64 * 1024)
+            while (true) {
+                val n = i.read(buf)
+                if (n < 0) break
+                md.update(buf, 0, n)
+            }
+        }
+        return md.digest().joinToString("") { "%02x".format(it) }
+    }
+
+    private fun get(url: String, limit: Long): java.io.InputStream {
+        require(url.startsWith(DOWNLOAD_PREFIX)) { "Unexpected download address" }
+        val c = URL(url).openConnection() as HttpURLConnection // GitHub's download links redirect to its asset host
+        c.connectTimeout = 15_000
+        c.readTimeout = 30_000
+        c.setRequestProperty("User-Agent", "EqDownload")
+        if (c.responseCode != 200) throw IllegalStateException("GitHub returned ${c.responseCode}")
+        val len = c.contentLengthLong
+        require(len <= limit) { "The update file is larger than expected" }
+        return c.inputStream
+    }
+
+    /**
+     * Downloads the release's APK into [dir], checks it against the release's own SHA256SUMS.txt, and returns it.
+     * A file that does not match is deleted. Android still requires the same signing key to install it.
+     */
+    fun download(release: Release, dir: File, onPercent: (Int) -> Unit = {}): File {
+        dir.deleteRecursively()
+        dir.mkdirs()
+        val sums = get(release.apkUrl.removeSuffix(APK) + SUMS, MAX_JSON.toLong()).use { String(it.readNBytes(MAX_JSON + 1), Charsets.UTF_8) }
+        val expected = expectedHash(sums) ?: throw IllegalStateException("The release has no checksum for the Android file")
+        val out = File(dir, APK)
+        var done = 0L
+        get(release.apkUrl, MAX_APK).use { input ->
+            out.outputStream().use { o ->
+                val buf = ByteArray(64 * 1024)
+                while (true) {
+                    val n = input.read(buf)
+                    if (n < 0) break
+                    done += n
+                    check(done <= MAX_APK) { "The update file is larger than expected" }
+                    o.write(buf, 0, n)
+                }
+            }
+        }
+        if (sha256(out) != expected) {
+            out.delete()
+            throw IllegalStateException("The downloaded update did not match its checksum, so it was discarded")
+        }
+        return out
+    }
 
     fun parseVersion(v: String): List<Int>? {
         val m = Regex("^v?(\\d+)\\.(\\d+)\\.(\\d+)$").matchEntire(v.trim()) ?: return null

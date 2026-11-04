@@ -34,6 +34,15 @@
 
         </activity>
 
+        <!-- Shares the downloaded update APK with Android's installer. Only the updates folder, only read access. -->
+        <provider
+            android:name="androidx.core.content.FileProvider"
+            android:authorities="${applicationId}.updates"
+            android:exported="false"
+            android:grantUriPermissions="true">
+            <meta-data android:name="android.support.FILE_PROVIDER_PATHS" android:resource="@xml/update_paths" />
+        </provider>
+
         <!-- Runs yt-dlp so downloads continue with the screen off. Only this app can start it. -->
         <service
             android:name=".DownloadService"
@@ -47,9 +56,10 @@
             tools:node="remove" />
     </application>
 
-    <!-- Permissions: internet, foreground service (data sync), notifications. Nothing else. -->
+    <!-- Permissions: internet, foreground service (data sync), notifications, installing its own updates. Nothing else. -->
     <uses-permission android:name="android.permission.INTERNET" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES" />
 </manifest>

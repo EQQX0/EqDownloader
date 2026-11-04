@@ -57,7 +57,7 @@ export const createSettings: ScreenFactory = (store) => {
       u.status === 'current' ? 'You have the newest version.'
       : u.status === 'available' ? `Version ${u.version} is available.`
       : u.status === 'installing' ? 'Downloading and checking the update...'
-      : u.status === 'installed' ? 'Update ready. The app will restart.'
+      : u.status === 'installed' ? 'Update downloaded and checked. Follow the prompt to finish.'
       : '';
   }
   sync();
