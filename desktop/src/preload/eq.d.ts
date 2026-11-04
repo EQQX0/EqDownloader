@@ -7,6 +7,7 @@ export type EqBridge = Engine & {
   getDefaultFolder(): Promise<string>;
   chooseFolder(): Promise<string | null>;
   revealFile(path: string): Promise<void>;
+  openSupport(): Promise<void>;
 };
 
 declare global {

@@ -189,3 +189,5 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
   .js [data-reveal] { opacity: 1; transform: none; transition: none; }
   summary::after, .button, .bar .action { transition: none; }
 }
+
+@media (max-width: 40rem) { .bar .coffee { display: none; } } /* still in the footer */

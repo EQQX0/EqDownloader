@@ -178,6 +178,17 @@ class EqEnginePlugin : Plugin() {
         }
     }
 
+    /** Opens the support page in the browser. The address is fixed here; JavaScript cannot change it. */
+    @PluginMethod
+    fun openSupport(call: PluginCall) {
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/EQQX2")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            call.resolve()
+        } catch (e: Throwable) {
+            reject(call, e)
+        }
+    }
+
     /**
      * The text on the clipboard, only while the app is in front (Android hides it from background apps).
      * It goes to the web view and nowhere else; JavaScript sends it on only if it holds a link the user then checks.

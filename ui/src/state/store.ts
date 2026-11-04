@@ -31,6 +31,7 @@ export interface Host {
   getDefaultFolder?: () => Promise<string>;
   chooseFolder?: () => Promise<string | null>;
   revealFile?: (path: string) => Promise<void>;
+  openSupport?: () => Promise<void>;
   appUpdater?: AppUpdater;
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
 }
@@ -41,6 +42,8 @@ export interface Store {
   readonly canChooseFolder: boolean;
   readonly canReveal: boolean;
   readonly canUpdateApp: boolean;
+  readonly canOpenSupport: boolean;
+  openSupport(): Promise<void>;
   submitLink(text: string): Promise<void>;
   startDownload(preset: Preset): Promise<void>;
   cancel(id: string): Promise<void>;
@@ -216,6 +219,14 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     canChooseFolder: typeof host.chooseFolder === 'function',
     canReveal: typeof host.revealFile === 'function',
     canUpdateApp: !!host.appUpdater,
+    canOpenSupport: typeof host.openSupport === 'function',
+    async openSupport() {
+      try {
+        await host.openSupport?.();
+      } catch {
+        // The browser could not open; nothing else to do.
+      }
+    },
 
     async submitLink(text) {
       const url = extractUrl(text);

@@ -419,3 +419,15 @@ describe('automatic engine update', () => {
     expect(store.state.error?.code).toBe('outdated');
   });
 });
+
+describe('support link', () => {
+  it('is offered only when the shell can open it, and opens through the shell', async () => {
+    const none = createStore(new TestEngine(), { storage: null });
+    expect(none.canOpenSupport).toBe(false);
+    const openSupport = vi.fn(async () => {});
+    const some = createStore(new TestEngine(), { storage: null, openSupport });
+    expect(some.canOpenSupport).toBe(true);
+    await some.openSupport();
+    expect(openSupport).toHaveBeenCalledOnce();
+  });
+});

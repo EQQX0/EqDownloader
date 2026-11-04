@@ -15,6 +15,8 @@ export interface DesktopExtras {
   getDefaultFolder(): Promise<string>;
   chooseFolder(): Promise<string | null>;
   revealFile(path: string): Promise<void>;
+  /** Opens the support page in the system browser. The address is fixed in the shell, not passed in. */
+  openSupport(): Promise<void>;
   appUpdater: AppUpdater;
 }
 
@@ -35,6 +37,7 @@ export function hostFor(engine: Engine): Partial<DesktopExtras> {
   if (typeof e.getDefaultFolder === 'function') out.getDefaultFolder = () => e.getDefaultFolder!();
   if (typeof e.chooseFolder === 'function') out.chooseFolder = () => e.chooseFolder!();
   if (typeof e.revealFile === 'function') out.revealFile = (p) => e.revealFile!(p);
+  if (typeof e.openSupport === 'function') out.openSupport = () => e.openSupport!();
   if (typeof e.appVersion === 'function' && typeof e.checkAppUpdate === 'function' && typeof e.installAppUpdate === 'function') {
     out.appUpdater = { version: () => e.appVersion!(), check: () => e.checkAppUpdate!(), install: () => e.installAppUpdate!() };
   }

@@ -18,6 +18,7 @@ const bridge: EqBridge = {
   getDefaultFolder: () => call('eq:getDefaultFolder'),
   chooseFolder: () => call('eq:chooseFolder'),
   revealFile: (p: string) => call('eq:revealFile', p),
+  openSupport: () => call('eq:openSupport'),
   onProgress(handler: (item: DownloadItem) => void): () => void {
     const listener = (_e: unknown, item: DownloadItem) => handler(item);
     ipcRenderer.on('eq:progress', listener);

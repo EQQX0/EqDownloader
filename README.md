@@ -51,6 +51,10 @@ Some sites need a login, an age check, or a different region. EqDownload shows t
 - The Windows window runs with context isolation, no Node access and a Content-Security-Policy that blocks remote scripts.
 - Android turns cleartext HTTP off and upgrades `http://` links to `https://` before they reach yt-dlp. This is partial protection: yt-dlp runs as its own process, so it may still follow a redirect to an `http://` address.
 
+## Support
+
+EqDownload is free and has no ads. If it saves you time, you can [buy me a coffee](https://buymeacoffee.com/EQQX2). The link is in the website's menu and footer and in Settings in both apps.
+
 ## Build from source
 
 You need Node 22. For Android you also need JDK 21 and the Android SDK.

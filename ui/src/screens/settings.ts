@@ -25,6 +25,11 @@ export const createSettings: ScreenFactory = (store) => {
   const appRow = h('p', { class: 'setting' }, h('label', { for: 'app-version', class: 'run-in' }, 'App version: '), appVer, ' ', appBtn, ' ', appNote);
   appRow.hidden = !store.canUpdateApp;
 
+  const support = h('button', { type: 'button', testid: 'support', class: 'button setting-action' }, 'Buy me a coffee');
+  support.addEventListener('click', () => void store.openSupport());
+  const supportRow = h('p', { class: 'setting' }, 'Free, no ads. If it helps you: ', support);
+  supportRow.hidden = !store.canOpenSupport;
+
   const el = h(
     'div', { class: 'screen screen-settings' },
     h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Settings')),
@@ -33,6 +38,7 @@ export const createSettings: ScreenFactory = (store) => {
       h('p', { class: 'setting' }, h('label', { for: 'default-preset', class: 'run-in' }, 'Default quality: '), select),
       h('p', { class: 'setting' }, h('label', { for: 'engine-version', class: 'run-in' }, 'Engine version: '), version, ' ', update),
       appRow,
+      supportRow,
       h('p', { class: 'setting-note' },
         'Sites change often. When a link that used to work fails, update the engine first.'),
     ),

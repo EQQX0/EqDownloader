@@ -80,6 +80,8 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
     setTimeout(() => app.quit(), 800);
     return v;
   });
+  // A fixed address: the renderer cannot choose what the system browser opens.
+  handle('eq:openSupport', () => shell.openExternal('https://buymeacoffee.com/EQQX2'));
   handle('eq:getDefaultFolder', () => {
     fs.mkdirSync(defaultDir, { recursive: true });
     return defaultDir;
