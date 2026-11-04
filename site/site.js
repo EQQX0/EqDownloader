@@ -21,13 +21,53 @@
   const out = document.getElementById('result');
   const safe = (u) => typeof u === 'string' && /^(https?:\/\/|\/api\/dl\?)/.test(u);
   const say = (text) => { out.textContent = ''; const p = document.createElement('p'); p.textContent = text; out.append(p); };
-  // Chrome and Edge on a PC can ask where to save the file, so it can go to any folder or drive.
+  // Chrome and Edge on a PC: pick a folder once (create Downloads\EqDownload), then every save goes there without asking.
+  const kv = {
+    db: null,
+    open() {
+      return (this.db ||= new Promise((resolve, reject) => {
+        const r = indexedDB.open('eqdownload', 1);
+        r.onupgradeneeded = () => r.result.createObjectStore('kv');
+        r.onsuccess = () => resolve(r.result);
+        r.onerror = () => reject(r.error);
+      }));
+    },
+    async get(k) {
+      const db = await this.open();
+      return new Promise((resolve, reject) => { const q = db.transaction('kv').objectStore('kv').get(k); q.onsuccess = () => resolve(q.result); q.onerror = () => reject(q.error); });
+    },
+    async set(k, v) {
+      const db = await this.open();
+      return new Promise((resolve, reject) => { const t = db.transaction('kv', 'readwrite'); t.objectStore('kv').put(v, k); t.oncomplete = () => resolve(); t.onerror = () => reject(t.error); });
+    },
+  };
+  const saveFolder = async (forcePick) => {
+    let dir = forcePick ? null : await kv.get('dir').catch(() => null);
+    if (dir) {
+      let perm = await dir.queryPermission({ mode: 'readwrite' });
+      if (perm !== 'granted') perm = await dir.requestPermission({ mode: 'readwrite' });
+      if (perm === 'granted') return dir;
+    }
+    dir = await window.showDirectoryPicker({ id: 'eqdownload', mode: 'readwrite', startIn: 'downloads' });
+    await kv.set('dir', dir).catch(() => {});
+    return dir;
+  };
+  const freeName = async (dir, name) => {
+    const dot = name.lastIndexOf('.');
+    const base = dot > 0 ? name.slice(0, dot) : name;
+    const ext = dot > 0 ? name.slice(dot) : '';
+    for (let n = 1; n < 200; n++) {
+      const candidate = n === 1 ? name : base + ' (' + n + ')' + ext;
+      try { await dir.getFileHandle(candidate); } catch { return candidate; }
+    }
+    return base + '-' + Date.now() + ext;
+  };
   const saveAs = async (ev, a, title, ext) => {
     ev.preventDefault();
     if (a.getAttribute('aria-busy')) return;
-    const name = (String(title || 'video').replace(/[\/:*?"<>|\x00-\x1f]/g, '').trim().slice(0, 80) || 'video') + '.' + (ext || 'mp4');
-    let handle;
-    try { handle = await window.showSaveFilePicker({ suggestedName: name }); }
+    const name = (String(title || 'video').replace(/[\\/:*?"<>|\x00-\x1f]/g, '').trim().slice(0, 80) || 'video') + '.' + (ext || 'mp4');
+    let dir;
+    try { dir = await saveFolder(false); }
     catch (err) { if (err && err.name === 'AbortError') return; location.href = a.href; return; }
     const label = a.dataset.label || (a.dataset.label = a.textContent);
     a.setAttribute('aria-busy', 'true'); a.textContent = 'Saving...';
@@ -36,7 +76,7 @@
       const res = await fetch(a.href);
       if (!res.ok || !res.body) throw new Error('bad');
       const total = Number(res.headers.get('Content-Length')) || 0;
-      w = await handle.createWritable();
+      w = await (await dir.getFileHandle(await freeName(dir, name), { create: true })).createWritable();
       const r = res.body.getReader();
       let got = 0;
       for (;;) {
@@ -48,7 +88,7 @@
       }
       if (total && got !== total) throw new Error('short');
       await w.close();
-      a.textContent = 'Saved';
+      a.textContent = 'Saved to ' + dir.name;
     } catch {
       if (w) { try { await w.abort(); } catch { /* already closed */ } }
       a.textContent = 'Failed, try again';
@@ -122,7 +162,7 @@
         a.className = 'button'; a.href = f.url; a.setAttribute('download', '');
         if (!f.url.startsWith('/')) { a.rel = 'noopener noreferrer'; a.target = '_blank'; }
         a.textContent = f.label + (f.size ? ', ' + f.size : '');
-        if (f.url.startsWith('/') && window.showSaveFilePicker) a.addEventListener('click', (ev) => saveAs(ev, a, data.title, f.ext));
+        if (f.url.startsWith('/') && window.showDirectoryPicker) a.addEventListener('click', (ev) => saveAs(ev, a, data.title, f.ext));
         list.append(a);
         if (canPhotos && f.kind === 'video' && /^(mp4|m4v|mov)$/.test(f.ext || '') && f.dl) {
           const b = document.createElement('button'); b.type = 'button'; b.className = 'button photos'; b.textContent = 'Save to Photos, ' + f.label;
@@ -137,6 +177,14 @@
         out.append(hint);
       }
       out.append(list);
+      if (window.showDirectoryPicker && list.querySelector('a[download]')) {
+        const note = document.createElement('p'); note.className = 'r-hint';
+        const change = document.createElement('button'); change.type = 'button'; change.className = 'linklike'; change.textContent = 'Change save folder';
+        change.addEventListener('click', () => { saveFolder(true).then((d) => { note.firstChild.textContent = 'Saving to the folder "' + d.name + '". '; }).catch(() => {}); });
+        note.append(document.createTextNode(''), change);
+        kv.get('dir').then((d) => { note.firstChild.textContent = d ? 'Saving to the folder "' + d.name + '". ' : 'The first save asks for a folder. Pick or create Downloads\\EqDownload; after that, saves go there without asking. '; }).catch(() => { note.firstChild.textContent = ''; });
+        out.append(note);
+      }
       if (ios) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'On iPhone, tap Save to Photos, wait for the file, tap again and choose Save Video. The plain link saves to the Files app instead.'; out.append(n); }
     } catch {
       say('No connection. Try again.');

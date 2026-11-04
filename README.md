@@ -8,7 +8,7 @@ You are responsible for having the right to download what you download.
 
 ## Install
 
-Both files are on the [Releases page](../../releases). No account is needed.
+Both files are on the [Releases page](https://github.com/EQQX0/EqDownloader/releases). No account is needed.
 
 **Windows.** Download `EqDownload.exe` and run it. It is portable: no installer, no admin rights. Windows SmartScreen will warn about an unknown publisher because the exe is not code-signed. Choose "More info", then "Run anyway".
 

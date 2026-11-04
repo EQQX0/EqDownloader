@@ -55,7 +55,8 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   } catch {
     // First run or unreadable: start with the default folder only.
   }
-  let allowed: string[] = mergeFolders([app.getPath('downloads')], parseAllowedFolders(saved, isDir));
+  const defaultDir = path.join(app.getPath('downloads'), 'EqDownload');
+  let allowed: string[] = mergeFolders([defaultDir, app.getPath('downloads')], parseAllowedFolders(saved, isDir));
   const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
     ipcMain.handle(channel, (_e, ...args) => toEnvelope(() => fn(...args) as Promise<unknown>));
   };
@@ -76,7 +77,10 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
     setTimeout(() => app.quit(), 800);
     return v;
   });
-  handle('eq:getDefaultFolder', () => app.getPath('downloads'));
+  handle('eq:getDefaultFolder', () => {
+    fs.mkdirSync(defaultDir, { recursive: true });
+    return defaultDir;
+  });
   handle('eq:chooseFolder', async () => {
     const win = getWindow();
     const opts = { properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> };
@@ -85,7 +89,7 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
     if (picked) {
       allowed = mergeFolders(allowed, [picked]);
       try {
-        fs.writeFileSync(storeFile, serializeAllowedFolders(allowed.filter((f) => f !== app.getPath('downloads'))));
+        fs.writeFileSync(storeFile, serializeAllowedFolders(allowed.filter((f) => f !== app.getPath('downloads') && f !== defaultDir)));
       } catch {
         // Not persisted; the folder still works until the app closes.
       }
