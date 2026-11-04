@@ -34,6 +34,8 @@ export interface DownloadItem {
   etaSec: number | null;
   filePath: string | null;
   error: EngineError | null;
+  /** Picture of the video, added by the app from the link check. Engines do not set it. */
+  thumbnail?: string | null;
 }
 
 export interface Engine {

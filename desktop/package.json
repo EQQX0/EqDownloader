@@ -1,7 +1,7 @@
 {
   "name": "@eq/desktop",
   "private": true,
-  "version": "0.1.16",
+  "version": "0.1.17",
   "type": "module",
   "scripts": {
     "test": "vitest run",
@@ -23,6 +23,6 @@
     "vitest": "^3.0.0"
   },
   "main": "out/main.cjs",
-  "description": "EqDownload desktop app",
+  "description": "EqDownload: fast video and audio downloader (parallel connections via aria2 and yt-dlp)",
   "author": "EQQX0"
 }

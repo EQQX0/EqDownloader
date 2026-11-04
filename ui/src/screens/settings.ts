@@ -41,6 +41,8 @@ export const createSettings: ScreenFactory = (store) => {
       supportRow,
       h('p', { class: 'setting-note' },
         'Sites change often. When a link that used to work fails, update the engine first.'),
+      h('p', { class: 'setting-note' },
+        'Fast downloads: each file is split into parts fetched over 8 connections at once, and streamed videos fetch 4 fragments at a time. Your connection and the site still set the top speed.'),
     ),
   );
 

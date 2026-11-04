@@ -54,7 +54,7 @@ class AppUpdateTest {
 
     @Test
     fun hashesAFile() {
-        val f = java.io.File.createTempFile("eq", ".bin")
+        val f = java.io.File.createTempFile("eqtest", ".bin")
         try {
             f.writeText("abc")
             assertEquals("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", AppUpdate.sha256(f))

@@ -228,71 +228,50 @@ body::before {
 .preset[aria-pressed='true']::after { transform: scaleX(1); }
 .preset:active { transform: scale(0.97); }
 
-/* downloads: one job per block, the meter across the full width */
-.queue { display: grid; gap: var(--space-5); }
-.job {
+/* downloads and library: one tidy row each. Thumbnail, one line of title, one line of status. */
+.queue, .shelf { display: grid; gap: var(--space-3); }
+.job, .file {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
-  column-gap: var(--space-2);
-  row-gap: var(--space-1);
-  align-items: baseline;
+  grid-template-columns: 3.5rem minmax(0, 1fr) auto;
+  column-gap: var(--space-3);
+  align-items: center;
 }
-.job-title {
-  grid-column: 1 / 3;
-  grid-row: 1;
-  font-size: var(--step-lead);
+.job-thumb, .file-thumb { width: 3.5rem; height: 3.5rem; object-fit: cover; border-radius: 0.5rem; background: var(--track); display: block; }
+.job-thumb, .file-thumb { grid-column: 1; }
+.job-main, .file-main { grid-column: 2; }
+.job-main, .file-main { display: grid; gap: 0.2rem; min-width: 0; }
+.job-title, .file-title {
+  font-size: var(--step-body);
   font-weight: 500;
-  line-height: 1.25;
-  text-wrap: balance;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
-.job-state { grid-column: 1; grid-row: 2; font-weight: 500; }
-.job-detail { grid-column: 2; grid-row: 2; color: var(--muted); font-variant-numeric: tabular-nums; }
-.job-percent {
-  grid-column: 3;
-  grid-row: 1 / 3;
-  align-self: end;
-  font-family: var(--font-display);
-  font-weight: 800;
-  font-size: var(--step-head);
-  line-height: 0.9;
-  letter-spacing: -0.04em;
+.job-status {
+  display: flex;
+  gap: 0.6em;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
   font-variant-numeric: tabular-nums;
+  color: var(--muted);
 }
-.job .meter { grid-column: 1 / -1; grid-row: 3; margin-top: var(--space-2); }
-.job-error { grid-column: 1 / 3; grid-row: 4; font-weight: 500; align-self: center; }
-.job-action { grid-column: 3; grid-row: 4; justify-self: end; margin-top: var(--space-1); }
-.job[data-state='failed'] .job-percent,
-.job[data-state='cancelled'] .job-percent { color: var(--muted); }
+.job-state, .file-state { font-weight: 500; color: var(--ink); }
+.job-error { overflow: hidden; text-overflow: ellipsis; }
+.job-error:empty, .job-detail:empty, .job-percent:empty { display: none; }
+.job .meter { margin-top: 0.15rem; }
+.job-action, .file-action { min-height: 2.5rem; padding-inline: var(--space-3); grid-column: 3; grid-row: 1; }
+.job[data-state='failed'] .meter-fill,
+.job[data-state='cancelled'] .meter-fill { background: var(--muted); }
+.job[data-state='failed'] .meter-top,
+.job[data-state='cancelled'] .meter-top { background: var(--muted); }
+.job[data-state='done'] .meter, .job[data-state='failed'] .meter, .job[data-state='cancelled'] .meter { display: none; }
 
 .meter { display: grid; gap: calc(var(--bar) * 0.75); }
 .meter-bar { display: block; height: var(--bar); background: var(--ink); }
 .meter-low { overflow: hidden; background: var(--track); }
 .meter-fill { display: block; height: 100%; background: var(--ink); transform: scaleX(0); transform-origin: left center; }
-.job[data-state='failed'] .meter-fill,
-.job[data-state='cancelled'] .meter-fill { background: var(--muted); }
-.job[data-state='failed'] .meter-top,
-.job[data-state='cancelled'] .meter-top { background: var(--muted); }
-
-/* library: one finished file per poster line */
-.shelf { display: grid; gap: var(--space-4); }
-.file {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  column-gap: var(--space-4);
-  row-gap: var(--space-1);
-  align-items: center;
-}
-.file-title {
-  grid-column: 1;
-  font-size: var(--step-head);
-  font-weight: 500;
-  line-height: 1.04;
-  letter-spacing: -0.03em;
-  text-wrap: balance;
-}
-.file-state { grid-column: 1; display: inline-flex; align-items: center; gap: 0.5em; font-weight: 500; }
-.file-path { grid-column: 1; color: var(--muted); overflow-wrap: anywhere; }
-.file-action { grid-column: 2; grid-row: 1 / span 3; }
 
 /* settings: a run-in column */
 .settings { display: grid; gap: var(--space-4); max-width: 40rem; }
@@ -356,16 +335,6 @@ body::before {
   .preset { justify-content: center; }
   .preset:first-child { grid-column: 1 / -1; }
   .start { width: 100%; }
-  .file { grid-template-columns: minmax(0, 1fr); }
-  .file-action { grid-column: 1; grid-row: auto; justify-self: start; margin-top: var(--space-1); }
-  .job { grid-template-columns: minmax(0, 1fr) auto; }
-  .job-title { grid-column: 1 / -1; }
-  .job-state { grid-column: 1; grid-row: 2; }
-  .job-detail { grid-column: 1; grid-row: 3; }
-  .job-percent { grid-column: 2; grid-row: 2 / 4; }
-  .job .meter { grid-row: 4; }
-  .job-error { grid-column: 1 / -1; grid-row: 5; }
-  .job-action { grid-column: 1 / -1; grid-row: 6; justify-self: stretch; }
 }
 
 /* Buy Me a Coffee's yellow and black. */

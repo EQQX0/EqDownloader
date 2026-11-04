@@ -8,6 +8,19 @@ export type ClipboardCapable = Engine & { readClipboard?(): Promise<string> };
 /** The slice of Document this needs, so tests can pass a stand-in. */
 export type DocLike = Pick<Document, 'addEventListener' | 'removeEventListener' | 'visibilityState' | 'defaultView'>;
 
+/** Only links that start like these are picked up from the clipboard. */
+export const CLIPBOARD_PREFIXES = [
+  'https://vt.tiktok.com/',
+  'https://www.instagram.com/',
+  'https://youtube.com/',
+  'https://youtu.be/',
+] as const;
+
+export function wantedClipboardLink(text: string): string | null {
+  const t = text.trim();
+  return CLIPBOARD_PREFIXES.some((p) => t.startsWith(p)) ? extractUrl(t) : null;
+}
+
 interface Target {
   submitLink(text: string): Promise<void>;
   go(screen: Screen): void;
@@ -26,7 +39,7 @@ export function wireClipboard(engine: ClipboardCapable, store: Target, doc: DocL
     if (busy || doc.visibilityState === 'hidden') return;
     busy = true;
     try {
-      const url = extractUrl(await read());
+      const url = wantedClipboardLink(await read());
       if (!url || url === last) return;
       last = url;
       store.go('home');

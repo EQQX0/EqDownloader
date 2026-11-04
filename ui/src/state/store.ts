@@ -113,9 +113,11 @@ export function createStore(engine: Engine, host: Host = {}): Store {
 
   // The engine's item.title is the URL until the download ends, so titles come from the probe.
   const titles = new Map<string, string>();
+  const thumbs = new Map<string, string>();
   const withTitle = (item: DownloadItem): DownloadItem => {
     const t = titles.get(item.id);
-    return t ? { ...item, title: t } : item;
+    const pic = thumbs.get(item.id);
+    return t || pic ? { ...item, title: t ?? item.title, thumbnail: pic ?? item.thumbnail ?? null } : item;
   };
   const upsert = (item: DownloadItem): void => {
     const next = withTitle(item);
@@ -153,7 +155,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       void autoUpdate().then((ok) => {
         if (!ok) return;
         set({ error: null });
-        void begin(item.url, item.preset, title);
+        void begin(item.url, item.preset, title, item.thumbnail ?? null);
       });
     }
   };
@@ -188,11 +190,12 @@ export function createStore(engine: Engine, host: Host = {}): Store {
 
   let probeSeq = 0;
 
-  async function begin(url: string, preset: Preset, title: string | null): Promise<void> {
+  async function begin(url: string, preset: Preset, title: string | null, thumbnail: string | null = null): Promise<void> {
     await ready;
     try {
       const id = await engine.start(url, preset, state.settings.destination);
       if (title) titles.set(id, title);
+      if (thumbnail) thumbs.set(id, thumbnail);
       const seen = state.items.find((i) => i.id === id);
       if (seen) upsert(seen);
       else {
@@ -259,7 +262,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       starting = true;
       try {
         set({ error: null });
-        await begin(probe.url, preset, probe.title);
+        await begin(probe.url, preset, probe.title, probe.thumbnail ?? null);
         if (!state.error) set({ probe: null, screen: 'downloads' });
       } finally {
         starting = false;
@@ -278,7 +281,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       const old = state.items.find((i) => i.id === id);
       if (!old || old.state !== 'failed') return;
       set({ error: null });
-      await begin(old.url, old.preset, titles.get(id) ?? (old.title !== old.url ? old.title : null));
+      await begin(old.url, old.preset, titles.get(id) ?? (old.title !== old.url ? old.title : null), old.thumbnail ?? null);
     },
 
     async updateEngine() {

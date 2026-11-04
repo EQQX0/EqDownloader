@@ -1,6 +1,6 @@
 # EqDownload
 
-EqDownload saves video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own in the apps. The engine is yt-dlp. The website is a separate small service, described below.
+EqDownload is a fast downloader for video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own in the apps. The engine is yt-dlp. The website is a separate small service, described below.
 
 Website: https://eqdownload.vercel.app (paste a link and save from the browser, or get the apps).
 
@@ -27,6 +27,16 @@ Check the downloads against `SHA256SUMS.txt` on the release.
 TikTok links save without the TikTok logo: presets skip any format yt-dlp labels as watermarked.
 
 Files go to your Downloads folder on Windows (change it in Settings) and to `Downloads/EqDownload` on Android.
+
+## Why it downloads fast
+
+- **Many connections per file.** The Windows and Android apps hand each download to aria2, which splits the file into parts and fetches 8 of them at the same time, like a download manager. One connection is often the limit; eight are not.
+- **Parallel pieces of streams.** Many sites send video as hundreds of small fragments. yt-dlp fetches 4 at once instead of one after another.
+- **Ranges.** Files are requested in 10 MB ranges, which sidesteps the per-connection slowdown some sites apply to a long single request.
+- **The website too.** In Chrome or Edge on a PC, files from 8 to 80 MB are fetched as 4 parallel slices and written into one file. If the source site does not allow ranges, it falls back to one stream.
+- **Your own connection.** The apps download straight from the site to your device. Nothing goes through a server of ours, so the speed is your line and the site's.
+
+How fast you actually get depends on your internet and on the site. A site that limits every visitor, or a slow line, still caps it.
 
 ## Updating the app
 

@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>EqDownload: save video and audio from a link</title>
-<meta name="description" content="Paste a link and save the video or the audio, in your browser or with the Windows and Android apps. No ads, accounts or analytics.">
+<meta name="description" content="Fast video and audio downloads: paste a link and save it in your browser or with the Windows and Android apps. Parallel connections, no ads, accounts or analytics.">
 <meta name="theme-color" content="#0B132B">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-title" content="EqDownload">
@@ -128,6 +128,10 @@
   <section id="questions" class="faq" aria-labelledby="faq-h">
     <h2 id="faq-h" data-reveal>Before you ask</h2>
     <div class="faq-list">
+      <details data-reveal>
+        <summary>How is it fast?</summary>
+        <p>The apps split each file into parts and fetch 8 at once, the way a download manager does, and fetch the small fragments of streamed videos 4 at a time. Files come in 10 MB ranges, which avoids the slowdown some sites put on one long connection. The apps download straight from the site to your device, so the speed is your line and the site's. On this page, files of 8 to 80 MB are fetched as 4 slices at once in Chrome or Edge on a PC. If a site does not allow that, it falls back to one stream.</p>
+      </details>
       <details data-reveal>
         <summary>How do I save a video on my iPhone?</summary>
         <p>Paste the link above and press Find. Tap a quality. Safari opens or downloads the file. Use the Share button, then Save to Files or Save Video. If the page says the site is blocked, send this page to a PC or an Android phone and use the app there.</p>
