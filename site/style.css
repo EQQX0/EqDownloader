@@ -135,12 +135,14 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 /* Close: an invitation over the cropped name, in the inverse colours. */
 .close { background: var(--inverse); color: var(--inverse-ink); min-height: 100svh; display: grid; grid-template-rows: auto 1fr auto; padding: clamp(3rem, 8vh, 6rem) var(--margin) 0; overflow: hidden; }
 .close a:focus-visible { outline-color: var(--inverse-ink); }
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: var(--ink); text-decoration: underline; cursor: pointer; }
+.linklike[hidden] { display: none; }
 .close-top { display: grid; grid-template-columns: 7fr 2fr; gap: var(--margin); align-items: start; }
 .invite { font-family: var(--font-display); font-weight: 800; letter-spacing: -0.03em; line-height: 1.05; font-size: clamp(2.5rem, 5.5vw, 5.5rem); margin-bottom: 2rem; }
 .links { list-style: none; padding: 0; display: grid; gap: 0.25rem; font-size: var(--small); }
 .links a { min-height: var(--target); display: inline-flex; align-items: center; }
 .credits { align-self: end; display: flex; justify-content: space-between; gap: 1rem; flex-wrap: wrap; font-size: var(--small); padding-bottom: 1rem; }
-.footer-name { margin: 0; transform: translateY(18%); padding-bottom: 0; }
+.footer-name { margin: 0; padding-bottom: clamp(1.5rem, 4vw, 3.5rem); }
 
 /* Motion: scroll-linked wordmark, staggered entrances. Content stays visible without script. */
 @supports (animation-timeline: scroll()) {
@@ -166,7 +168,7 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
   .get td:first-of-type { font-size: var(--body); }
   .strip { font-size: var(--lead); padding-top: 2rem; }
   details[open] { margin: -1rem calc(-1 * var(--margin)); padding: 1rem var(--margin) 1.25rem; }
-  .footer-name { transform: translateY(15%); }
+  .footer-name { padding-bottom: 1.5rem; }
 }
 
 @media (prefers-reduced-motion: reduce) {

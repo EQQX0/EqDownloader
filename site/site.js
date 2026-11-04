@@ -160,6 +160,28 @@
   const preset = new URLSearchParams(location.search).get('url');
   if (preset) { form.elements.url.value = preset; form.requestSubmit(); }
 
+  // Web app: register the service worker and offer the browser's install prompt where it exists.
+  if ('serviceWorker' in navigator && location.protocol === 'https:') navigator.serviceWorker.register('/sw.js').catch(() => {});
+  const installBtn = document.getElementById('install');
+  const installHint = document.getElementById('install-hint');
+  if (ios && installHint) installHint.textContent = 'Tap Share, then Add to Home Screen';
+  let deferred = null;
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    deferred = e;
+    if (installBtn) installBtn.hidden = false;
+    if (installHint) installHint.hidden = true;
+  });
+  if (installBtn) installBtn.addEventListener('click', async () => {
+    if (!deferred) return;
+    deferred.prompt();
+    await deferred.userChoice.catch(() => {});
+    deferred = null;
+    installBtn.hidden = true;
+    if (installHint) { installHint.hidden = false; installHint.textContent = 'Installed, or open it from your apps'; }
+  });
+  window.addEventListener('appinstalled', () => { if (installBtn) installBtn.hidden = true; if (installHint) { installHint.hidden = false; installHint.textContent = 'Installed'; } });
+
   const items = document.querySelectorAll('[data-reveal]');
   items.forEach((el, i) => el.style.setProperty('--i', String(i % 4)));
   if (!('IntersectionObserver' in window)) { items.forEach((el) => el.classList.add('in')); return; }

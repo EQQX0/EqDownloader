@@ -11,6 +11,7 @@
 <meta name="format-detection" content="telephone=no">
 <link rel="icon" href="icon-512.png" type="image/png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
 <link rel="preload" href="fonts/unbounded-latin-800-normal.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 <script src="boot.js"></script>
@@ -86,19 +87,25 @@
 
   <section id="get" class="get" aria-labelledby="get-h">
     <h2 id="get-h" class="visually-hidden">Get EqDownload</h2>
-    <h3 class="strip">Version 0.1.5</h3>
+    <h3 class="strip">Version 0.1.6</h3>
     <table>
       <thead class="visually-hidden"><tr><th>Device</th><th>File</th><th>Size</th><th>Needs</th></tr></thead>
       <tbody>
         <tr data-reveal>
           <th scope="row">Windows</th>
-          <td><a href="https://github.com/EQQX0/EqDownloader/releases/download/v0.1.5/EqDownload.exe">EqDownload.exe</a></td>
+          <td><a href="https://github.com/EQQX0/EqDownloader/releases/download/v0.1.6/EqDownload.exe">EqDownload.exe</a></td>
           <td class="num">178 MB</td>
           <td>Windows 10 or 11, 64-bit</td>
         </tr>
+        <tr data-reveal id="webapp">
+          <th scope="row">Web app</th>
+          <td><button type="button" id="install" class="linklike" hidden>Install EqDownload</button><span id="install-hint">Browser menu, then Install app or Add to Home Screen</span></td>
+          <td class="num"></td>
+          <td>Any modern browser, no download</td>
+        </tr>
         <tr data-reveal>
           <th scope="row">Android</th>
-          <td><a href="https://github.com/EQQX0/EqDownloader/releases/download/v0.1.5/EqDownload.apk">EqDownload.apk</a></td>
+          <td><a href="https://github.com/EQQX0/EqDownloader/releases/download/v0.1.6/EqDownload.apk">EqDownload.apk</a></td>
           <td class="num">63 MB</td>
           <td>Android 10 or newer, 64-bit ARM</td>
         </tr>
@@ -135,8 +142,8 @@
       <details data-reveal>
         <summary>Why the warnings, and is the file genuine?</summary>
         <p>Windows shows an unknown-publisher warning because the exe is not code-signed: choose More info, then Run anyway. To check a file, compare its SHA-256 with these values from the release.</p>
-        <p class="hash">EqDownload.exe<br><code>2cd443099d3abb6f5a0d36853a9ffc647a388ad2fff9fe7681dfb3654aa2950f</code></p>
-        <p class="hash">EqDownload.apk<br><code>706b710a526d1c817c2162bd510ef3ac2f251ccbe3858b46de43df1df51752fe</code></p>
+        <p class="hash">EqDownload.exe<br><code>20a1d546121da1a12cac89b83130469912d902cdebd07c87381cf21c4f6041c5</code></p>
+        <p class="hash">EqDownload.apk<br><code>f5f22c1802eed46cb91dec2c2f930ec2a9baedaa5e231d9fae4097f44c700172</code></p>
       </details>
       <details data-reveal>
         <summary>What does it send about me?</summary>
