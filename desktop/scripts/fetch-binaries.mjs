@@ -90,7 +90,7 @@ try {
     const extractDir = path.join(work, 'x');
     fs.mkdirSync(extractDir);
     // Windows ships bsdtar (reads zip). Use it by full path: Git Bash puts GNU tar first on PATH.
-    const tar = path.join(process.env.SystemRoot ?? 'C:\Windows', 'System32', 'tar.exe');
+    const tar = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
     execFileSync(tar, ['-xf', zip, '-C', extractDir, '*/bin/ffmpeg.exe'], { stdio: 'inherit' });
     const found = fs.readdirSync(extractDir, { withFileTypes: true }).find((d) => d.isDirectory());
     const extracted = found && path.join(extractDir, found.name, 'bin', 'ffmpeg.exe');

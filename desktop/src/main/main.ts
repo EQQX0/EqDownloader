@@ -3,12 +3,13 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import type { DownloadItem, EngineError, Preset } from '@eq/ui/engine';
+import { checkDestination, isUnderAny, toEnvelope } from './ipc';
 import { resolveBinaries } from './paths';
-import { contentSecurityPolicy, hardenWebContents, windowOptions } from './security';
+import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from './security';
 import { updateYtDlp } from './update';
 import { YtDlpEngine } from './ytdlp';
 
-export { contentSecurityPolicy, hardenWebContents, windowOptions };
+export { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions };
 
 const PRESETS: readonly Preset[] = ['best', '1080p', '720p', 'mp3', 'm4a'];
 
@@ -43,25 +44,35 @@ function str(v: unknown, name: string): string {
 }
 
 function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null): void {
-  ipcMain.handle('eq:probe', (_e, url) => engine.probe(str(url, 'url')));
-  ipcMain.handle('eq:start', (_e, url, preset, destination) => {
+  // Folders the renderer may write to: the default Downloads folder plus whatever the user picked.
+  const allowedFolders = new Set<string>([app.getPath('downloads')]);
+  const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
+    ipcMain.handle(channel, (_e, ...args) => toEnvelope(() => fn(...args) as Promise<unknown>));
+  };
+
+  handle('eq:probe', (url) => engine.probe(str(url, 'url')));
+  handle('eq:start', (url, preset, destination) => {
     if (!PRESETS.includes(preset as Preset)) throw { code: 'unknown', message: 'Invalid preset' } satisfies EngineError;
-    const dest = str(destination, 'destination');
-    if (!path.isAbsolute(dest)) throw { code: 'disk', message: 'Destination must be an absolute path' } satisfies EngineError;
+    const dest = checkDestination(destination, [...allowedFolders]);
     return engine.start(str(url, 'url'), preset as Preset, dest);
   });
-  ipcMain.handle('eq:cancel', (_e, id) => engine.cancel(str(id, 'id')));
-  ipcMain.handle('eq:list', () => engine.list());
-  ipcMain.handle('eq:updateEngine', () => engine.updateEngine());
-  ipcMain.handle('eq:chooseFolder', async () => {
+  handle('eq:cancel', (id) => engine.cancel(str(id, 'id')));
+  handle('eq:list', () => engine.list());
+  handle('eq:updateEngine', () => engine.updateEngine());
+  handle('eq:chooseFolder', async () => {
     const win = getWindow();
     const opts = { properties: ['openDirectory', 'createDirectory'] as Array<'openDirectory' | 'createDirectory'> };
     const r = win ? await dialog.showOpenDialog(win, opts) : await dialog.showOpenDialog(opts);
-    return r.canceled || !r.filePaths[0] ? null : r.filePaths[0];
+    const picked = r.canceled ? null : (r.filePaths[0] ?? null);
+    if (picked) allowedFolders.add(picked);
+    return picked;
   });
-  ipcMain.handle('eq:revealFile', (_e, p) => {
+  handle('eq:revealFile', (p) => {
     const file = str(p, 'path');
-    if (path.isAbsolute(file)) shell.showItemInFolder(file);
+    if (!isUnderAny(file, [...allowedFolders])) {
+      throw { code: 'disk', message: 'That file is outside the download folders' } satisfies EngineError;
+    }
+    shell.showItemInFolder(file);
   });
   engine.onProgress((item: DownloadItem) => {
     const win = getWindow();
@@ -79,7 +90,7 @@ function createWindow(): BrowserWindow {
 
 function lockDownSession(): void {
   const ses = session.defaultSession;
-  ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  hardenSession(ses);
   ses.webRequest.onHeadersReceived((details, cb) => {
     cb({ responseHeaders: { ...details.responseHeaders, 'Content-Security-Policy': [contentSecurityPolicy()] } });
   });

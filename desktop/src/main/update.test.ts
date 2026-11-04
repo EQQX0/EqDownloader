@@ -51,6 +51,7 @@ describe('assertAllowedUrl', () => {
       'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest',
       'https://github.com/yt-dlp/yt-dlp/releases/download/x/yt-dlp.exe',
       'https://objects.githubusercontent.com/abc',
+      'https://release-assets.githubusercontent.com/abc',
     ]) {
       expect(() => assertAllowedUrl(u)).not.toThrow();
     }
@@ -122,5 +123,55 @@ describe('updateYtDlp', () => {
     const noSums = { ...release, assets: [release.assets[0]!] };
     const f = (async () => new Response(JSON.stringify(noSums), { status: 200 })) as unknown as typeof fetch;
     await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+  });
+
+  describe('redirects and size caps', () => {
+    const resp = (status: number, headers: Record<string, string>) => new Response(null, { status, headers });
+
+    it('follows an allowed redirect chain and reports hosts', async () => {
+      const dir = await tmp();
+      const hosts: string[] = [];
+      const base = makeFetch(`${hex(exe)}  yt-dlp.exe\n`);
+      const f = (async (url: string, init?: RequestInit) => {
+        expect(init?.redirect).toBe('manual');
+        if (url.startsWith('https://github.com') && url.endsWith('/yt-dlp.exe'))
+          return resp(302, { location: 'https://release-assets.githubusercontent.com/blob/1' });
+        if (url.startsWith('https://release-assets.githubusercontent.com')) return new Response(exe, { status: 200 });
+        return base(url, init);
+      }) as unknown as typeof fetch;
+      await updateYtDlp({ userDataDir: dir, fetch: f, onHost: (h) => hosts.push(h) });
+      expect(hosts).toContain('release-assets.githubusercontent.com');
+      expect(await fs.readFile(path.join(dir, 'yt-dlp.exe'))).toEqual(exe);
+    });
+
+    it('never contacts a redirect target outside the allowlist', async () => {
+      const dir = await tmp();
+      const base = makeFetch(`${hex(exe)}  yt-dlp.exe\n`);
+      const seen: string[] = [];
+      const f = (async (url: string, init?: RequestInit) => {
+        seen.push(url);
+        if (url.endsWith('/yt-dlp.exe')) return resp(302, { location: 'https://evil.example/x' });
+        return base(url, init);
+      }) as unknown as typeof fetch;
+      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+      expect(seen.some((u) => u.includes('evil.example'))).toBe(false);
+      expect(await fs.readdir(dir)).toEqual([]);
+    });
+
+    it('caps redirect hops', async () => {
+      const dir = await tmp();
+      const f = (async () => resp(302, { location: 'https://github.com/loop' })) as unknown as typeof fetch;
+      await expect(updateYtDlp({ userDataDir: dir, fetch: f })).rejects.toMatchObject({ code: 'network' });
+    });
+
+    it('rejects an oversize download and keeps the old binary', async () => {
+      const dir = await tmp();
+      await fs.writeFile(path.join(dir, 'yt-dlp.exe'), 'old');
+      await expect(
+        updateYtDlp({ userDataDir: dir, fetch: makeFetch(`${hex(exe)}  yt-dlp.exe\n`), maxExeBytes: 4 }),
+      ).rejects.toMatchObject({ code: 'network' });
+      expect(await fs.readFile(path.join(dir, 'yt-dlp.exe'), 'utf8')).toBe('old');
+      expect(await fs.readdir(dir)).toEqual(['yt-dlp.exe']);
+    });
   });
 });

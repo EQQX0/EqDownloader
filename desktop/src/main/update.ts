@@ -4,13 +4,22 @@ import path from 'node:path';
 import type { EngineError } from '@eq/ui/engine';
 
 export const RELEASE_API = 'https://api.github.com/repos/yt-dlp/yt-dlp/releases/latest';
-const ALLOWED_HOSTS = new Set(['api.github.com', 'github.com', 'objects.githubusercontent.com']);
+const ALLOWED_HOSTS = new Set([
+  'api.github.com',
+  'github.com',
+  'objects.githubusercontent.com',
+  'release-assets.githubusercontent.com',
+]);
+const MAX_HOPS = 5;
+export const MAX_EXE_BYTES = 200 * 1024 * 1024;
+export const MAX_SUMS_BYTES = 1024 * 1024;
+const MAX_JSON_BYTES = 8 * 1024 * 1024;
 const EXE_ASSET = 'yt-dlp.exe';
 const SUMS_ASSET = 'SHA2-256SUMS';
 
 const fail = (message: string): EngineError => ({ code: 'network', message });
 
-/** Throws unless the URL is https on one of the three GitHub hosts the updater may contact. */
+/** Throws unless the URL is https on one of the GitHub hosts the updater may contact. */
 export function assertAllowedUrl(url: string): void {
   let u: URL;
   try {
@@ -48,9 +57,37 @@ interface ReleaseAsset {
   browser_download_url: string;
 }
 
+/** Reads a response body, rejecting as soon as it exceeds `max` bytes. */
+async function readCapped(res: Response, max: number): Promise<Buffer> {
+  const declared = Number(res.headers.get('content-length'));
+  if (Number.isFinite(declared) && declared > max) {
+    await res.body?.cancel().catch(() => undefined);
+    throw fail('Download is larger than allowed; discarded');
+  }
+  const chunks: Buffer[] = [];
+  let total = 0;
+  const reader = res.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  for (;;) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    total += value.byteLength;
+    if (total > max) {
+      await reader.cancel().catch(() => undefined);
+      throw fail('Download is larger than allowed; discarded');
+    }
+    chunks.push(Buffer.from(value));
+  }
+  return Buffer.concat(chunks);
+}
+
 export interface UpdateOptions {
   userDataDir: string;
   fetch?: typeof fetch;
+  /** Called with the host of every request actually made (for diagnostics). */
+  onHost?: (host: string) => void;
+  /** Override the yt-dlp.exe size cap (tests). */
+  maxExeBytes?: number;
 }
 
 /**
@@ -59,29 +96,44 @@ export interface UpdateOptions {
  */
 export async function updateYtDlp(opts: UpdateOptions): Promise<string> {
   const f = opts.fetch ?? fetch;
-  const get = async (url: string): Promise<Response> => {
-    assertAllowedUrl(url);
-    let res: Response;
-    try {
-      res = await f(url, { redirect: 'follow', headers: { 'User-Agent': 'EqDownload', Accept: 'application/octet-stream, application/vnd.github+json' } });
-    } catch (e) {
-      throw fail(`Could not reach GitHub: ${e instanceof Error ? e.message : String(e)}`);
+  // Redirects are followed by hand so every Location is checked BEFORE it is contacted.
+  const get = async (start: string, maxBytes: number): Promise<Buffer> => {
+    let url = start;
+    for (let hop = 0; ; hop++) {
+      assertAllowedUrl(url);
+      opts.onHost?.(new URL(url).hostname);
+      let res: Response;
+      try {
+        res = await f(url, { redirect: 'manual', headers: { 'User-Agent': 'EqDownload', Accept: 'application/octet-stream, application/vnd.github+json' } });
+      } catch (e) {
+        throw fail(`Could not reach GitHub: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      if (res.status >= 300 && res.status < 400) {
+        const loc = res.headers.get('location');
+        await res.body?.cancel().catch(() => undefined);
+        if (!loc) throw fail('GitHub sent a redirect without a location');
+        if (hop >= MAX_HOPS) throw fail('Too many redirects');
+        try {
+          url = new URL(loc, url).toString();
+        } catch {
+          throw fail('Update blocked: invalid redirect');
+        }
+        continue;
+      }
+      if (!res.ok) throw fail(`GitHub returned ${res.status} for ${new URL(url).pathname}`);
+      return readCapped(res, maxBytes);
     }
-    // A redirect may have left the allowed hosts.
-    if (res.url) assertAllowedUrl(res.url);
-    if (!res.ok) throw fail(`GitHub returned ${res.status} for ${new URL(url).pathname}`);
-    return res;
   };
 
-  const release = (await (await get(RELEASE_API)).json()) as { tag_name?: string; assets?: ReleaseAsset[] };
+  const release = JSON.parse((await get(RELEASE_API, MAX_JSON_BYTES)).toString('utf8')) as { tag_name?: string; assets?: ReleaseAsset[] };
   const assets = Array.isArray(release.assets) ? release.assets : [];
   const exe = assets.find((a) => a.name === EXE_ASSET);
   const sumsAsset = assets.find((a) => a.name === SUMS_ASSET);
   if (!release.tag_name || !exe) throw fail('Latest yt-dlp release has no Windows build');
   if (!sumsAsset) throw fail('Latest yt-dlp release has no checksum file; refusing to install');
 
-  const sums = parseChecksums(await (await get(sumsAsset.browser_download_url)).text());
-  const data = Buffer.from(await (await get(exe.browser_download_url)).arrayBuffer());
+  const sums = parseChecksums((await get(sumsAsset.browser_download_url, MAX_SUMS_BYTES)).toString('utf8'));
+  const data = await get(exe.browser_download_url, opts.maxExeBytes ?? MAX_EXE_BYTES);
   verifyChecksum(data, EXE_ASSET, sums);
 
   await fs.mkdir(opts.userDataDir, { recursive: true });

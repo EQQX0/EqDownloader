@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from 'vitest';
 import { EventEmitter } from 'node:events';
-import { contentSecurityPolicy, hardenWebContents, windowOptions } from '../src/main/security';
+import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from '../src/main/security';
 
 describe('window security options', () => {
   const wp = windowOptions().webPreferences!;
@@ -69,5 +69,32 @@ describe('hardenWebContents', () => {
     const preventDefault = vi.fn();
     c.ee.emit('will-navigate', { preventDefault });
     expect(preventDefault).toHaveBeenCalled();
+  });
+
+  it.each(['will-redirect', 'will-frame-navigate'])('prevents %s', (evt) => {
+    const c = fakeContents();
+    hardenWebContents(c.ee as never);
+    const preventDefault = vi.fn();
+    c.ee.emit(evt, { preventDefault });
+    expect(preventDefault).toHaveBeenCalled();
+  });
+});
+
+describe('hardenSession', () => {
+  it('denies every permission request and check', () => {
+    let req: ((...a: unknown[]) => void) | undefined;
+    let chk: (() => boolean) | undefined;
+    hardenSession({
+      setPermissionRequestHandler: (h: never) => {
+        req = h;
+      },
+      setPermissionCheckHandler: (h: never) => {
+        chk = h;
+      },
+    } as never);
+    const cb = vi.fn();
+    req!({}, 'media', cb);
+    expect(cb).toHaveBeenCalledWith(false);
+    expect(chk!()).toBe(false);
   });
 });

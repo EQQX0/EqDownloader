@@ -1,15 +1,19 @@
 import { contextBridge, ipcRenderer } from 'electron';
 import type { DownloadItem, Preset } from '@eq/ui/engine';
 import type { EqBridge } from '../preload/eq';
+import { unwrapEnvelope, type Envelope } from './ipc';
+
+const call = async <T>(channel: string, ...args: unknown[]): Promise<T> =>
+  unwrapEnvelope((await ipcRenderer.invoke(channel, ...args)) as Envelope<T>);
 
 const bridge: EqBridge = {
-  probe: (url: string) => ipcRenderer.invoke('eq:probe', url),
-  start: (url: string, preset: Preset, destination: string) => ipcRenderer.invoke('eq:start', url, preset, destination),
-  cancel: (id: string) => ipcRenderer.invoke('eq:cancel', id),
-  list: () => ipcRenderer.invoke('eq:list'),
-  updateEngine: () => ipcRenderer.invoke('eq:updateEngine'),
-  chooseFolder: () => ipcRenderer.invoke('eq:chooseFolder'),
-  revealFile: (p: string) => ipcRenderer.invoke('eq:revealFile', p),
+  probe: (url: string) => call('eq:probe', url),
+  start: (url: string, preset: Preset, destination: string) => call('eq:start', url, preset, destination),
+  cancel: (id: string) => call('eq:cancel', id),
+  list: () => call('eq:list'),
+  updateEngine: () => call('eq:updateEngine'),
+  chooseFolder: () => call('eq:chooseFolder'),
+  revealFile: (p: string) => call('eq:revealFile', p),
   onProgress(handler: (item: DownloadItem) => void): () => void {
     const listener = (_e: unknown, item: DownloadItem) => handler(item);
     ipcRenderer.on('eq:progress', listener);

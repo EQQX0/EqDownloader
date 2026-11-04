@@ -1,5 +1,5 @@
 import path from 'node:path';
-import type { BrowserWindowConstructorOptions, WebContents } from 'electron';
+import type { BrowserWindowConstructorOptions, Session, WebContents } from 'electron';
 
 /** Strict policy for the renderer. Thumbnails come from arbitrary https hosts, so img-src allows https: and data:. */
 export function contentSecurityPolicy(): string {
@@ -40,5 +40,13 @@ export function windowOptions(preloadPath: string = path.join(__dirname, 'preloa
 /** No new windows, no navigation away from the loaded UI. */
 export function hardenWebContents(contents: Pick<WebContents, 'setWindowOpenHandler' | 'on'>): void {
   contents.setWindowOpenHandler(() => ({ action: 'deny' }));
-  contents.on('will-navigate', (event) => event.preventDefault());
+  for (const evt of ['will-navigate', 'will-redirect', 'will-frame-navigate'] as const) {
+    contents.on(evt as 'will-navigate', (event: { preventDefault(): void }) => event.preventDefault());
+  }
+}
+
+/** Deny every permission (camera, notifications, clipboard, ...). */
+export function hardenSession(ses: Pick<Session, 'setPermissionRequestHandler' | 'setPermissionCheckHandler'>): void {
+  ses.setPermissionRequestHandler((_wc, _perm, cb) => cb(false));
+  ses.setPermissionCheckHandler(() => false);
 }
