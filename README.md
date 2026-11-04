@@ -18,8 +18,6 @@ Check the downloads against `SHA256SUMS.txt` on the release.
 
 **In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For TikTok, the file itself is streamed through that server (up to 80 MB), because TikTok's file links need cookies a browser cannot send.
 
-**On your own PC, for YouTube.** YouTube blocks the Vercel site's servers, so run the same page on your PC: install Python 3.10 or newer, then double-click `home/start.bat` and open http://localhost:8765. It runs yt-dlp on your home connection, so YouTube works, and it joins separate video and audio into one mp4 when ffmpeg is present. In Chrome and Edge on a PC, each download button opens a Save As window, so the file can go to any folder or drive. `start.bat --lan` lets phones on your Wi-Fi use it; never expose it to the internet.
-
 ## Use
 
 1. Paste a link, or share one from another app.
