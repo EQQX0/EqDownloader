@@ -14,7 +14,7 @@ Both files are on the [Releases page](../../releases). The repository is private
 
 Check the downloads against `SHA256SUMS.txt` on the release.
 
-**In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs.
+**In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For TikTok, the file itself is streamed through that server (up to 80 MB), because TikTok's file links need cookies a browser cannot send.
 
 ## Use
 
