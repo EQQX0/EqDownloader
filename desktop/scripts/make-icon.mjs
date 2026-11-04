@@ -1,4 +1,4 @@
-// Builds desktop/build/icon.ico from design/icon.svg.
+// Builds desktop/build/icon.ico from design/icon.png.
 // Rasterises with the Chromium that @playwright/test already installs for the e2e suite (no new dependency),
 // then packs the PNGs into one ICO (PNG-compressed entries, supported by Windows Vista and later).
 //   node desktop/scripts/make-icon.mjs
@@ -8,22 +8,22 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const svgPath = join(here, '..', '..', 'design', 'icon.svg');
+const pngPath = join(here, '..', '..', 'design', 'icon.png');
 const outPath = join(here, '..', 'build', 'icon.ico');
 const SIZES = [16, 24, 32, 48, 64, 128, 256];
 
-const svg = readFileSync(svgPath, 'utf8');
+const dataUrl = 'data:image/png;base64,' + readFileSync(pngPath).toString('base64');
 const browser = await chromium.launch();
 const pngs = [];
 try {
   const page = await browser.newPage({ deviceScaleFactor: 1 });
   for (const size of SIZES) {
     await page.setViewportSize({ width: size, height: size });
-    const sized = svg.replace(/width="\d+" height="\d+"/, `width="${size}" height="${size}"`);
     await page.setContent(
-      `<!doctype html><html><body style="margin:0;background:transparent">${sized}</body></html>`,
+      `<!doctype html><html><body style="margin:0;background:transparent"><img id="logo" src="${dataUrl}" width="${size}" height="${size}" style="display:block"></body></html>`,
     );
-    pngs.push(await page.locator('svg').screenshot({ omitBackground: true, type: 'png' }));
+    await page.waitForFunction(() => document.getElementById('logo').complete);
+    pngs.push(await page.locator('#logo').screenshot({ omitBackground: true, type: 'png' }));
   }
 } finally {
   await browser.close();

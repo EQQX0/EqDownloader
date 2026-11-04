@@ -3,5 +3,5 @@
     <!-- From ui/src/styles/tokens.css: the bg and accent tokens. -->
     <color name="eq_green">#0B132B</color>
     <color name="eq_gold">#D97706</color>
-    <color name="ic_launcher_background">#0b0705</color>
+    <color name="ic_launcher_background">#0B132B</color>
 </resources>

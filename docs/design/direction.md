@@ -58,7 +58,7 @@ Dated 2026-11-04.
 - **The live thing** is the meter on Downloads. It runs on yt-dlp's real numbers. When a job is done,
   its two bars read as "=". A failed or cancelled job keeps both bars in the muted ink and says
   Failed or Cancelled in words. The same two bars are the emblem in the header, the Done mark in
-  Library, the app icon (`design/icon.svg`), and the bar under the current tab and the chosen preset.
+  Library, the app icon (`design/icon.png`), and the bar under the current tab and the chosen preset.
 - On a phone it is the same meter at full width. The percent sits beside it in the display face.
   With motion off, the bar stands at its value.
 
@@ -238,7 +238,7 @@ size, which weakens that screen's hierarchy.
 
 ## App icon
 
-`design/icon.svg` is a flat 256-unit square: bottle green with the two gold bars of the equals sign,
+`design/icon.png` is a flat 256-unit square: bottle green with the two gold bars of the equals sign,
 kept inside the central 66% so Android adaptive masks never crop it. `desktop/scripts/make-icon.mjs`
 (`npm -w desktop run make-icon`) renders it at 16, 24, 32, 48, 64, 128 and 256px. It uses the Chromium
 that `@playwright/test` already installs, so there is no new dependency. It packs the renders into

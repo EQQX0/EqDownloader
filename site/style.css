@@ -30,6 +30,8 @@ a { color: inherit; }
 .bar { padding: calc(env(safe-area-inset-top) + 0.75rem) var(--margin) 0; }
 .bar nav { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem 1.5rem; font-size: var(--small); font-weight: 500; }
 .bar a { min-height: var(--target); display: inline-flex; align-items: center; text-decoration: none; }
+.bar .logo { margin-right: auto; }
+.bar .logo img { display: block; width: 3rem; height: 3rem; }
 .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .bar .action { background: var(--accent); color: var(--accent-ink); padding: 0 1.1rem; transition: transform 140ms var(--ease); }
 .bar .action:hover { text-decoration: none; }
@@ -141,6 +143,7 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
 @media (max-width: 760px) {
   .bar nav { justify-content: space-between; }
   .bar a[href='#how'] { display: none; }
+  .bar nav { gap: 0.25rem 1rem; }
   .how .column { margin-left: 0; max-width: none; }
   .faq-list { margin-left: 0; }
   .faq h2 { font-size: 10vw; }

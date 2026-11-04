@@ -33,7 +33,10 @@
   text-transform: uppercase;
 }
 
-/* the equals mark: emblem, Done mark */
+/* the round logo in the header */
+.brand-logo { display: block; width: 2.25rem; height: 2.25rem; flex: none; }
+
+/* the equals mark: the Done mark */
 .mark { display: inline-grid; gap: 0.2em; width: 1.35em; flex: none; }
 .mark-bar { display: block; height: 0.24em; background: currentColor; }
 

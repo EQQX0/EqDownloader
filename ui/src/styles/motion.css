@@ -38,10 +38,6 @@
   .link-form > :nth-child(3) { animation-delay: 330ms; }
   .screen > .link-form { animation: none; }
 
-  /* the emblem draws itself the way a job does: the upper bar, then the lower one */
-  .brand-mark .mark-bar { animation: eq-grow 700ms var(--ease-out) 200ms both; transform-origin: left center; }
-  .brand-mark .mark-bar + .mark-bar { animation-delay: 420ms; }
-
   .error { animation: eq-rise 420ms var(--ease-out) both; }
   .bar > *, .colophon > * { animation: eq-rise 640ms var(--ease-out) both; }
   .bar > :nth-child(2) { animation-delay: 80ms; }
