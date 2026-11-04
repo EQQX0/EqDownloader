@@ -52,7 +52,7 @@ def pick_formats(info):
     out = []
     seen = set()
     fmts = [f for f in info.get('formats') or [] if f.get('url') and f.get('protocol') in ('https', 'http')]
-    both = [f for f in fmts if f.get('vcodec') not in (None, 'none') and f.get('acodec') not in (None, 'none')]
+    both = [f for f in fmts if f.get('vcodec') != 'none' and f.get('acodec') != 'none']
     for f in sorted(both, key=lambda f: (f.get('height') or 0, f.get('tbr') or 0), reverse=True):
         h = f.get('height') or 0
         if h in seen:
@@ -63,7 +63,7 @@ def pick_formats(info):
         out.append({'kind': 'video', 'label': f"{label} {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': f['url']})
         if len(out) == 4:
             break
-    audio = [f for f in fmts if f.get('vcodec') in (None, 'none') and f.get('acodec') not in (None, 'none')]
+    audio = [f for f in fmts if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
     if audio:
         f = sorted(audio, key=lambda f: (f.get('abr') or 0, f.get('ext') == 'm4a'), reverse=True)[0]
         size = f.get('filesize') or f.get('filesize_approx')
@@ -125,7 +125,7 @@ class handler(BaseHTTPRequestHandler):
         try:
             result = probe(url)
         except yt_dlp.utils.DownloadError as e:
-            return self._send(422, {'error': explain(str(e))})
+            return self._send(422, {'error': explain(str(e)), 'detail': str(e)[:240]})
         except Exception:
             return self._send(500, {'error': 'Could not read that link.'})
         if not result['formats']:
