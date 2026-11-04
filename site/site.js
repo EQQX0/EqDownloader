@@ -58,6 +58,33 @@
     }
   };
 
+  // iPhone: Safari saves downloads to Files. The share sheet's Save Video puts the file in Photos.
+  // The file is fetched on the first tap and shared on the second, because iOS only allows sharing straight after a tap.
+  const canPhotos = ios && typeof navigator.canShare === 'function' && typeof File === 'function';
+  const toPhotos = (btn, f, title) => {
+    let file = null;
+    btn.addEventListener('click', async () => {
+      if (btn.getAttribute('aria-busy')) return;
+      if (!file) {
+        btn.setAttribute('aria-busy', 'true'); btn.textContent = 'Getting the video...';
+        try {
+          const res = await fetch(f.dl);
+          if (!res.ok) throw new Error('bad');
+          const blob = await res.blob();
+          const name = (String(title || 'video').replace(/[\/:*?"<>|\x00-\x1f]/g, '').trim().slice(0, 60) || 'video') + '.' + f.ext;
+          file = new File([blob], name, { type: blob.type || 'video/mp4' });
+          if (!navigator.canShare({ files: [file] })) throw new Error('unsupported');
+          btn.textContent = 'Tap again: Save Video';
+        } catch {
+          file = null; btn.textContent = 'Could not prepare. Use the link above.';
+        } finally { btn.removeAttribute('aria-busy'); }
+        return;
+      }
+      try { await navigator.share({ files: [file] }); btn.textContent = 'Shared. Pick Save Video'; }
+      catch (err) { if (!err || err.name !== 'AbortError') btn.textContent = 'Sharing failed. Use the link above.'; }
+    });
+  };
+
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
     const link = form.elements.url.value.trim();
@@ -97,9 +124,13 @@
         a.textContent = f.label + (f.size ? ', ' + f.size : '');
         if (f.url.startsWith('/') && window.showSaveFilePicker) a.addEventListener('click', (ev) => saveAs(ev, a, data.title, f.ext));
         list.append(a);
+        if (canPhotos && f.kind === 'video' && /^(mp4|m4v|mov)$/.test(f.ext || '') && f.dl) {
+          const b = document.createElement('button'); b.type = 'button'; b.className = 'button'; b.textContent = 'Save to Photos, ' + f.label;
+          toPhotos(b, f, data.title); list.append(b);
+        }
       }
       out.append(list);
-      if (ios) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'On iPhone, the file opens in Safari. Use the Share button, then Save to Files or Save Video.'; out.append(n); }
+      if (ios) { const n = document.createElement('p'); n.className = 'note'; n.textContent = 'On iPhone, tap Save to Photos, wait for the file, tap again and choose Save Video. The plain link saves to the Files app instead.'; out.append(n); }
     } catch {
       say('No connection. Try again.');
     } finally {

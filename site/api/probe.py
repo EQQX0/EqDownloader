@@ -56,6 +56,9 @@ def pick_formats(info, page_url, proxy):
             return '/api/dl?url=' + quote(page_url, safe='') + '&f=' + quote(str(f.get('format_id')), safe='')
         return f['url']
 
+    def dl_link(f):
+        return '/api/dl?url=' + quote(page_url, safe='') + '&f=' + quote(str(f.get('format_id')), safe='')
+
     seen = set()
     # TikTok lists a watermarked copy next to the clean one; never offer it.
     fmts = [f for f in info.get('formats') or []
@@ -68,7 +71,7 @@ def pick_formats(info, page_url, proxy):
         seen.add(h)
         size = f.get('filesize') or f.get('filesize_approx')
         label = f'{h}p' if h else 'Video'
-        out.append({'kind': 'video', 'label': f"{label} {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': link(f)})
+        out.append({'kind': 'video', 'label': f"{label} {f.get('ext', '')}".strip(), 'size': size_text(size), 'ext': f.get('ext'), 'url': link(f), 'dl': dl_link(f)})
         if len(out) == 4:
             break
     audio = [f for f in fmts if f.get('vcodec') == 'none' and f.get('acodec') != 'none']
