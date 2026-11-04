@@ -6,12 +6,16 @@ temp folder and are deleted when the transfer ends. By default it listens on thi
 Pass --lan to let phones on your Wi-Fi reach it. Do not expose it to the internet.
 """
 import argparse
+import hashlib
+import hmac
 import json
 import mimetypes
 import os
+import secrets
 import shutil
 import sys
 import tempfile
+import time
 import urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -27,6 +31,25 @@ import dl as sd  # noqa: E402  (its download resolver)
 
 CHUNK = 256 * 1024
 MAX_BYTES = 8_000_000_000
+
+
+# Requests that arrive through a Cloudflare tunnel carry a Cf-Ray header (a visitor cannot remove it).
+# Those need the access key; requests straight from this PC do not.
+KEY_FILE = Path(__file__).resolve().parent / 'access.key'
+if not KEY_FILE.exists():
+    KEY_FILE.write_text(secrets.token_urlsafe(15), encoding='utf-8')
+KEY = KEY_FILE.read_text(encoding='utf-8').strip()
+COOKIE = hmac.new(KEY.encode(), b'eqhome-session', hashlib.sha256).hexdigest()
+FAILS = {}  # client id -> (count, first failure time)
+LOGIN_PAGE = (
+    '<!doctype html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">'
+    '<title>EqDownload Home</title><body style="font:18px system-ui;background:#0B132B;color:#F4D6B0;margin:0;'
+    'display:grid;place-items:center;min-height:100vh"><form method="post" action="/login" style="display:grid;'
+    'gap:12px;width:min(90vw,22rem)"><b style="font-size:24px">EqDownload Home</b>%s'
+    '<input name="key" type="password" autocomplete="current-password" placeholder="Access key" autofocus '
+    'style="font:inherit;padding:12px;background:#1C2541;color:#F4D6B0;border:0"><button style="font:inherit;'
+    'padding:12px;background:#D97706;color:#0B132B;border:0;font-weight:700">Open</button></form>'
+)
 
 
 def find_ffmpeg():
@@ -92,8 +115,56 @@ class Handler(BaseHTTPRequestHandler):
                 break
             self.wfile.write(chunk)
 
+    def via_tunnel(self):
+        return 'Cf-Ray' in self.headers or 'Cf-Connecting-Ip' in self.headers
+
+    def authed(self):
+        if not self.via_tunnel():
+            return True
+        jar = self.headers.get('Cookie') or ''
+        return any(hmac.compare_digest(c.strip(), 'eq=' + COOKIE) for c in jar.split(';'))
+
+    def login_page(self, note='', code=200):
+        body = (LOGIN_PAGE % note).encode()
+        self.send_response(code)
+        self.send_header('Content-Type', 'text/html; charset=utf-8')
+        self.send_header('Content-Length', str(len(body)))
+        self.send_header('Cache-Control', 'no-store')
+        self.end_headers()
+        self.wfile.write(body)
+
+    def do_POST(self):
+        u = urlparse(self.path)
+        if u.path != '/login':
+            self.send_response(404)
+            self.send_header('Content-Length', '0')
+            self.end_headers()
+            return
+        who = self.headers.get('Cf-Connecting-Ip') or self.client_address[0]
+        n, t0 = FAILS.get(who, (0, time.time()))
+        if time.time() - t0 > 600:
+            n, t0 = 0, time.time()
+        if n >= 5:
+            return self.login_page('<span>Too many tries. Wait 10 minutes.</span>', 429)
+        size = min(int(self.headers.get('Content-Length') or 0), 1024)
+        given = (parse_qs(self.rfile.read(size).decode('utf-8', 'ignore')).get('key') or [''])[0]
+        if not hmac.compare_digest(given.encode(), KEY.encode()):
+            FAILS[who] = (n + 1, t0)
+            time.sleep(1)
+            return self.login_page('<span>Wrong key.</span>', 401)
+        FAILS.pop(who, None)
+        self.send_response(303)
+        self.send_header('Location', '/')
+        self.send_header('Set-Cookie', 'eq=%s; Max-Age=2592000; Path=/; HttpOnly; Secure; SameSite=Strict' % COOKIE)
+        self.send_header('Content-Length', '0')
+        self.end_headers()
+
     def do_GET(self):
         u = urlparse(self.path)
+        if not self.authed():
+            if u.path.startswith('/api/'):
+                return self.send_json(401, {'error': 'Sign in first.'})
+            return self.login_page()
         q = parse_qs(u.query)
         try:
             if u.path == '/api/probe':
