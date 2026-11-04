@@ -190,4 +190,3 @@ details p { max-width: 48ch; font-size: var(--body); margin-top: 0.75rem; }
   summary::after, .button, .bar .action { transition: none; }
 }
 
-@media (max-width: 40rem) { .bar .coffee { display: none; } } /* still in the footer */
