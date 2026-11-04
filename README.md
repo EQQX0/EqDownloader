@@ -2,6 +2,8 @@
 
 EqDownload saves video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own. The engine is yt-dlp.
 
+Website: https://eqdownload.vercel.app (paste a link and save from the browser, or get the apps).
+
 You are responsible for having the right to download what you download.
 
 ## Install
