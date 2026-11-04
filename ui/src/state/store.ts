@@ -226,8 +226,10 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     try {
       const v = await engine.updateEngine();
       state.settings = { ...state.settings, engineVersion: v };
+      note('engine', `updated automatically to ${v} after an out-of-date failure`);
       return true;
-    } catch {
+    } catch (e) {
+      note('engine', `automatic update failed: ${asEngineError(e).message}`);
       return false;
     }
   };

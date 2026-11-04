@@ -252,7 +252,14 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
             // The fast downloader failed: switch it off and run the same download again with yt-dlp's own.
             DebugLog.add("fallback", "$id aria2c failed, retrying with the built-in downloader")
             YtDlpRuntime.disableFast()
-            runOnce(spec, id, false, onProgress)
+            try {
+                runOnce(spec, id, false, onProgress)
+            } catch (e2: DownloadCancelled) {
+                throw e2
+            } catch (e2: Throwable) {
+                DebugLog.add("error", "$id (after fallback) ${e2.javaClass.simpleName}: ${e2.message?.take(2000)}")
+                throw e2
+            }
         }
     }
 
