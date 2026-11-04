@@ -19,6 +19,7 @@ export const OUTPUT_TEMPLATE = '%(title).120B [%(id)s].%(ext)s';
 export const PROGRESS_TEMPLATE = 'download:%(progress._percent_str)s|%(progress.speed)s|%(progress.eta)s';
 
 const STDERR_CAP = 64 * 1024;
+const STALE_AFTER_MS = 10 * 60 * 1000;
 const STAGING_PREFIX = '.eqdl-';
 
 export interface YtDlpEngineOptions {
@@ -141,7 +142,7 @@ const rmStaging = (dir: string): Promise<void> =>
 export class YtDlpEngine implements Engine {
   private readonly opts: YtDlpEngineOptions;
   private readonly jobs = new Map<string, Job>();
-  private readonly swept = new Set<string>();
+  private readonly swept = new Map<string, Promise<void>>();
   private readonly handlers = new Set<(item: DownloadItem) => void>();
 
   constructor(opts: YtDlpEngineOptions) {
@@ -302,21 +303,42 @@ export class YtDlpEngine implements Engine {
     return this.jobs.get(id)?.pid;
   }
 
-  /** Removes `.eqdl-*` folders left behind by crashed runs, once per destination per engine. */
-  private async sweepStale(destination: string): Promise<void> {
+  /**
+   * Removes `.eqdl-*` folders older than 10 minutes (left by crashed runs), once per destination
+   * per engine. Every start() awaits the same promise before creating its own staging folder.
+   */
+  private sweepStale(destination: string): Promise<void> {
     const key = path.resolve(destination);
-    if (this.swept.has(key)) return;
-    this.swept.add(key);
+    let p = this.swept.get(key);
+    if (!p) {
+      p = this.doSweep(key);
+      this.swept.set(key, p);
+    }
+    return p;
+  }
+
+  private async doSweep(dir: string): Promise<void> {
     let names: string[];
     try {
-      names = await fs.readdir(key);
+      names = await fs.readdir(dir);
     } catch {
       return;
     }
+    const active = new Set([...this.jobs.values()].map((j) => path.resolve(j.staging)));
+    const cutoff = Date.now() - STALE_AFTER_MS;
     await Promise.all(
       names
         .filter((n) => n.startsWith(STAGING_PREFIX))
-        .map((n) => rmStaging(path.join(key, n)).catch(() => undefined)),
+        .map(async (n) => {
+          const full = path.join(dir, n);
+          if (active.has(path.resolve(full))) return;
+          try {
+            if ((await fs.stat(full)).mtimeMs >= cutoff) return;
+            await rmStaging(full);
+          } catch {
+            /* best effort */
+          }
+        }),
     );
   }
 

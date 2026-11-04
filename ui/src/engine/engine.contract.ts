@@ -30,8 +30,14 @@ export function runEngineContract(name: string, make: () => Engine): void {
 
     it('start returns an id that appears in list()', async () => {
       const e = make();
+      const done = new Promise<void>((resolve) => {
+        e.onProgress((i) => {
+          if (i.state === 'done') resolve();
+        });
+      });
       const id = await e.start('https://example.test/v', 'best', dest);
       expect((await e.list()).some((i) => i.id === id)).toBe(true);
+      await done; // let the download finish so nothing holds files when dest is removed
     });
 
     it('progress events end with state done and percent 100', async () => {

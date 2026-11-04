@@ -230,6 +230,8 @@ describe('YtDlpEngine behaviour', () => {
     const stale = path.join(dir, '.eqdl-crashed');
     fs.mkdirSync(stale);
     fs.writeFileSync(path.join(stale, 'x.part'), 'p');
+    const old = new Date(Date.now() - 11 * 60 * 1000);
+    fs.utimesSync(stale, old, old);
     fs.writeFileSync(path.join(dir, 'keep.txt'), 'k');
     const e = makeEngine();
     const p = waitFor(e, (i) => i.state === 'done');
@@ -237,6 +239,47 @@ describe('YtDlpEngine behaviour', () => {
     await p;
     expect(fs.existsSync(stale)).toBe(false);
     expect(fs.existsSync(path.join(dir, 'keep.txt'))).toBe(true);
+  });
+
+  it('keeps fresh .eqdl-* folders and removes only those older than 10 minutes', async () => {
+    const oldDir = path.join(dir, '.eqdl-old');
+    const newDir = path.join(dir, '.eqdl-new');
+    fs.mkdirSync(oldDir);
+    fs.mkdirSync(newDir);
+    const old = new Date(Date.now() - 11 * 60 * 1000);
+    fs.utimesSync(oldDir, old, old);
+    const e = makeEngine();
+    const p = waitFor(e, (i) => i.state === 'done');
+    await e.start('https://example.test/v', 'best', dir);
+    await p;
+    expect(fs.existsSync(oldDir)).toBe(false);
+    expect(fs.existsSync(newDir)).toBe(true);
+  });
+
+  it('concurrent first starts into a fresh destination do not sweep each other', async () => {
+    const e = makeEngine();
+    const done: DownloadItem[] = [];
+    const failed: DownloadItem[] = [];
+    const all = new Promise<void>((resolve) => {
+      e.onProgress((i) => {
+        if (i.state === 'failed') failed.push(i);
+        if (i.state === 'done') {
+          done.push(i);
+          if (done.length === 4) resolve();
+        }
+      });
+    });
+    const fresh = path.join(dir, 'fresh');
+    fs.mkdirSync(fresh);
+    await Promise.all(
+      [1, 2, 3, 4].map((n) =>
+        e.start(`https://example.test/v?title=t${n}&steps=3&stepms=150`, 'best', fresh),
+      ),
+    );
+    await all;
+    expect(failed).toEqual([]);
+    expect(new Set(done.map((d) => d.filePath)).size).toBe(4);
+    expect(fs.readdirSync(fresh)).toHaveLength(4);
   });
 
   it('start surfaces an EngineError when the destination cannot be created', async () => {

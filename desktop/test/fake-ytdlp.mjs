@@ -84,10 +84,8 @@ const partPath = path.join(home, name + '.part');
 const writeFiles = fs.existsSync(home);
 if (writeFiles) fs.writeFileSync(partPath, 'partial');
 
-const tplArg = val('--progress-template') ?? '';
 // Real yt-dlp consumes the `download:` type prefix and prints only the template body.
 const prefix = '';
-void tplArg;
 const steps = Number(q.get('steps') ?? 4);
 const stepMs = Number(q.get('stepms') ?? 120);
 for (let i = 1; i <= steps; i++) {
