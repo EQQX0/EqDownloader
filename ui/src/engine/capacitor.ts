@@ -14,6 +14,8 @@ export interface EqEnginePlugin {
   readClipboard(): Promise<{ text: string }>;
   quickInfo(opts: { url: string }): Promise<{ title: string; thumbnail: string | null }>;
   openSupport(): Promise<void>;
+  readDebugLog(): Promise<{ text: string }>;
+  clearDebugLog(): Promise<void>;
   addListener(event: 'progress', cb: (item: DownloadItem) => void): Promise<PluginListenerHandle>;
   addListener(event: 'clipboard', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
   addListener(event: 'share', cb: (data: { text: string }) => void): Promise<PluginListenerHandle>;
@@ -105,6 +107,14 @@ export class CapacitorEngine implements Engine {
 
   openSupport(): Promise<void> {
     return call(this.plugin.openSupport());
+  }
+
+  async readDebugLog(): Promise<string> {
+    return (await call(this.plugin.readDebugLog())).text;
+  }
+
+  clearDebugLog(): Promise<void> {
+    return call(this.plugin.clearDebugLog());
   }
 
   /** Title and picture from the site's own lookup (oEmbed), for YouTube and TikTok. Rejects for other sites. */

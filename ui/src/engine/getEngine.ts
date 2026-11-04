@@ -17,6 +17,8 @@ export interface DesktopExtras {
   revealFile(path: string): Promise<void>;
   /** Opens the support page in the system browser. The address is fixed in the shell, not passed in. */
   openSupport(): Promise<void>;
+  readDebugLog(): Promise<string>;
+  clearDebugLog(): Promise<void>;
   appUpdater: AppUpdater;
 }
 
@@ -38,6 +40,8 @@ export function hostFor(engine: Engine): Partial<DesktopExtras> {
   if (typeof e.chooseFolder === 'function') out.chooseFolder = () => e.chooseFolder!();
   if (typeof e.revealFile === 'function') out.revealFile = (p) => e.revealFile!(p);
   if (typeof e.openSupport === 'function') out.openSupport = () => e.openSupport!();
+  if (typeof e.readDebugLog === 'function') out.readDebugLog = () => e.readDebugLog!();
+  if (typeof e.clearDebugLog === 'function') out.clearDebugLog = () => e.clearDebugLog!();
   if (typeof e.appVersion === 'function' && typeof e.checkAppUpdate === 'function' && typeof e.installAppUpdate === 'function') {
     out.appUpdater = { version: () => e.appVersion!(), check: () => e.checkAppUpdate!(), install: () => e.installAppUpdate!() };
   }

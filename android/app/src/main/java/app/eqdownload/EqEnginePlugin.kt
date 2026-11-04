@@ -154,6 +154,18 @@ class EqEnginePlugin : Plugin() {
         call.resolve(JSObject().put("items", items))
     }
 
+    /** The on-device debug log: the commands that ran, what yt-dlp printed, and errors. */
+    @PluginMethod
+    fun readDebugLog(call: PluginCall) {
+        call.resolve(JSObject().put("text", DebugLog.read()))
+    }
+
+    @PluginMethod
+    fun clearDebugLog(call: PluginCall) {
+        DebugLog.clear()
+        call.resolve()
+    }
+
     @PluginMethod
     fun appVersion(call: PluginCall) {
         try {

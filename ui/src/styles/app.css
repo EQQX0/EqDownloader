@@ -342,3 +342,5 @@ body::before {
 
 /* Buy Me a Coffee's yellow and black. */
 .button.coffee { background: #FFDD00; color: #000; }
+
+.debug-text { margin-top: var(--space-1); max-height: 14rem; overflow: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: 0.75rem; user-select: text; }

@@ -168,6 +168,8 @@ const rmStaging = (dir: string): Promise<void> =>
 
 export class YtDlpEngine implements Engine {
   private readonly opts: YtDlpEngineOptions;
+  /** Set when aria2c failed once; later downloads then use yt-dlp's own downloader. */
+  private aria2Failed = false;
   private readonly jobs = new Map<string, Job>();
   private readonly swept = new Map<string, Promise<void>>();
   private readonly handlers = new Set<(item: DownloadItem) => void>();
@@ -218,7 +220,7 @@ export class YtDlpEngine implements Engine {
         ...(this.opts.ytdlpArgsPrefix ?? []),
         '--ffmpeg-location',
         this.opts.ffmpegPath,
-        ...(this.opts.aria2cPath && existsSync(this.opts.aria2cPath)
+        ...(this.opts.aria2cPath && !this.aria2Failed && existsSync(this.opts.aria2cPath)
           ? ['--downloader', this.opts.aria2cPath, '--downloader-args', 'aria2c:-x 8 -s 8 -k 1M --summary-interval=1']
           : []),
         ...buildArgs(url, preset, staging),
@@ -289,6 +291,8 @@ export class YtDlpEngine implements Engine {
           await this.complete(job);
         } else {
           await rmStaging(staging);
+          // If aria2 was the problem, the next try (the Retry button) uses yt-dlp's own downloader.
+          if (/aria2/i.test(stderr)) this.aria2Failed = true;
           this.fail(job, errorFromStderr(stderr));
         }
       }),

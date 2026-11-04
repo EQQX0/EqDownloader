@@ -34,6 +34,9 @@ export interface Host {
   chooseFolder?: () => Promise<string | null>;
   revealFile?: (path: string) => Promise<void>;
   openSupport?: () => Promise<void>;
+  /** The shell's own log (Android keeps one), appended to the app's log in Settings. */
+  readDebugLog?: () => Promise<string>;
+  clearDebugLog?: () => Promise<void>;
   appUpdater?: AppUpdater;
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
 }
@@ -46,6 +49,9 @@ export interface Store {
   readonly canUpdateApp: boolean;
   readonly canOpenSupport: boolean;
   openSupport(): Promise<void>;
+  /** Everything traceable about failures: the app's own notes plus the shell's log when there is one. */
+  debugLog(): Promise<string>;
+  clearDebugLog(): Promise<void>;
   submitLink(text: string): Promise<void>;
   startDownload(preset: Preset): Promise<void>;
   cancel(id: string): Promise<void>;
@@ -62,6 +68,8 @@ export interface Store {
 
 const KEY_DEST = 'eq.destination';
 const KEY_PRESET = 'eq.preset';
+const KEY_DEBUG = 'eq.debug';
+const DEBUG_MAX = 40_000;
 const KEY_LIBRARY = 'eq.library';
 const LIBRARY_MAX = 200;
 
@@ -181,6 +189,11 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     etaSmooth.set(id, { eta, at: now });
     return Math.round(eta);
   };
+  /** Adds one line to the app's debug log, kept on the device and cut to its newest part. */
+  const note = (tag: string, text: string): void => {
+    const line = `${new Date().toISOString().replace('T', ' ').slice(0, 19)} [${tag}] ${text.replace(/\s+/g, ' ').slice(0, 600)}\n`;
+    write(KEY_DEBUG, ((read(KEY_DEBUG) ?? '') + line).slice(-DEBUG_MAX));
+  };
   const upsert = (item: DownloadItem): void => {
     const idx = state.items.findIndex((i) => i.id === item.id);
     const prevItem = idx >= 0 ? state.items[idx] : undefined;
@@ -196,6 +209,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     const wasFailed = idx >= 0 && state.items[idx]!.state === 'failed';
     const patch: Partial<State> = { items };
     if (next.state === 'failed' && !wasFailed && next.error) {
+      note('failed', `${next.error.code}: ${next.error.message} | ${next.url} | ${next.preset} | app ${state.settings.appVersion ?? '?'} engine ${state.settings.engineVersion ?? '?'}`);
       const ui = describeError(next.error, state.settings.destination);
       if (ui.offerUpdate) patch.error = ui;
     }
@@ -309,6 +323,26 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     canReveal: typeof host.revealFile === 'function',
     canUpdateApp: !!host.appUpdater,
     canOpenSupport: typeof host.openSupport === 'function',
+    async debugLog() {
+      let native = '';
+      try {
+        native = (await host.readDebugLog?.()) ?? '';
+      } catch {
+        // The shell has no log to show.
+      }
+      const app = read(KEY_DEBUG) ?? '';
+      return [`App ${state.settings.appVersion ?? 'unknown'}, engine ${state.settings.engineVersion ?? 'unknown'}`, app && `--- app ---\n${app}`, native && `--- shell ---\n${native}`]
+        .filter(Boolean)
+        .join('\n\n');
+    },
+    async clearDebugLog() {
+      write(KEY_DEBUG, '');
+      try {
+        await host.clearDebugLog?.();
+      } catch {
+        // Nothing to clear in the shell.
+      }
+    },
     async openSupport() {
       try {
         await host.openSupport?.();

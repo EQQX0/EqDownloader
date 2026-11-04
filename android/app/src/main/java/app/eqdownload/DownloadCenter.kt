@@ -213,12 +213,21 @@ object YtDlpRuntime {
     var fastDownloads = false
         private set
 
+    /** Called when aria2c failed once: the rest of this session downloads with yt-dlp's own downloader. */
+    fun disableFast() {
+        aria2Broken = true
+        fastDownloads = false
+    }
+
+    @Volatile
+    private var aria2Broken = false
+
     @Synchronized
     fun ensure(context: Context) {
         val app = context.applicationContext
         YoutubeDL.getInstance().init(app)
         FFmpeg.getInstance().init(app)
-        fastDownloads = runCatching { Aria2c.getInstance().init(app) }.isSuccess
+        fastDownloads = !aria2Broken && runCatching { Aria2c.getInstance().init(app) }.isSuccess
     }
 }
 
@@ -227,17 +236,43 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
 
     override fun prepare() = YtDlpRuntime.ensure(context)
 
+    init {
+        DebugLog.init(File(context.filesDir, "debug.log"))
+    }
+
     override fun execute(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit) {
+        val fast = YtDlpRuntime.fastDownloads
+        try {
+            runOnce(spec, id, fast, onProgress)
+        } catch (e: DownloadCancelled) {
+            throw e
+        } catch (e: Throwable) {
+            DebugLog.add("error", "$id ${e.javaClass.simpleName}: ${e.message?.take(2000)}")
+            if (!fast || !DebugLog.isAria2Failure(e)) throw e
+            // The fast downloader failed: switch it off and run the same download again with yt-dlp's own.
+            DebugLog.add("fallback", "$id aria2c failed, retrying with the built-in downloader")
+            YtDlpRuntime.disableFast()
+            runOnce(spec, id, false, onProgress)
+        }
+    }
+
+    private fun runOnce(spec: CommandSpec, id: String, fast: Boolean, onProgress: (Float, Long, String) -> Unit) {
         val request = YoutubeDLRequest(spec.url)
         for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
-        if (YtDlpRuntime.fastDownloads) {
+        if (fast) {
             request.addOption("--downloader", "libaria2c.so")
             // No --downloader-args here: the library adds its own `--external-downloader-args aria2c:--summary-interval=1`
             // after ours, and yt-dlp keeps only the last one per downloader. aria2's defaults (16 connections) apply.
+        } else {
+            request.addOption("--no-continue") // never resume a half file that aria2 wrote in pieces
         }
         request.addCommands(listOf("--")) // the library puts the url after this
+        DebugLog.add("start", "$id ${if (fast) "aria2c" else "built-in"} ${spec.url} ${spec.commandLine().joinToString(" ")}")
         try {
-            YoutubeDL.getInstance().execute(request, id, false) { p, eta, line -> onProgress(p, eta, line) }
+            YoutubeDL.getInstance().execute(request, id, false) { p, eta, line ->
+                if (line.isNotBlank() && !DebugLog.isProgressLine(line)) DebugLog.add("yt-dlp", line.take(500))
+                onProgress(p, eta, line)
+            }
         } catch (e: YoutubeDL.CanceledException) {
             throw DownloadCancelled()
         }

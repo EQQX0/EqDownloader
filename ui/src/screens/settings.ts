@@ -30,6 +30,41 @@ export const createSettings: ScreenFactory = (store) => {
   const supportRow = h('p', { class: 'setting' }, 'Free, no ads. If it helps you: ', support);
   supportRow.hidden = !store.canOpenSupport;
 
+  const logBox = h('pre', { testid: 'debug-text', class: 'debug-text' });
+  logBox.hidden = true;
+  const logShow = h('button', { type: 'button', testid: 'debug-show', class: 'button setting-action' }, 'Show debug log');
+  const logCopy = h('button', { type: 'button', testid: 'debug-copy', class: 'button setting-action' }, 'Copy');
+  const logClear = h('button', { type: 'button', testid: 'debug-clear', class: 'button setting-action' }, 'Clear');
+  const logNote = h('span', { class: 'setting-note' });
+  logCopy.hidden = logClear.hidden = true;
+  let logText = '';
+  logShow.addEventListener('click', async () => {
+    if (!logBox.hidden) {
+      logBox.hidden = logCopy.hidden = logClear.hidden = true;
+      logShow.textContent = 'Show debug log';
+      return;
+    }
+    logText = await store.debugLog();
+    logBox.textContent = logText;
+    logBox.hidden = logCopy.hidden = logClear.hidden = false;
+    logShow.textContent = 'Hide debug log';
+  });
+  logCopy.addEventListener('click', async () => {
+    try {
+      await navigator.clipboard.writeText(logText);
+      logNote.textContent = 'Copied.';
+    } catch {
+      logNote.textContent = 'Could not copy. Select the text and copy it.';
+    }
+  });
+  logClear.addEventListener('click', async () => {
+    await store.clearDebugLog();
+    logText = await store.debugLog();
+    logBox.textContent = logText;
+    logNote.textContent = 'Cleared.';
+  });
+  const debugRow = h('div', { class: 'setting' }, 'Debug log: ', logShow, ' ', logCopy, ' ', logClear, ' ', logNote, logBox);
+
   const el = h(
     'div', { class: 'screen screen-settings' },
     h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Settings')),
@@ -39,6 +74,7 @@ export const createSettings: ScreenFactory = (store) => {
       h('p', { class: 'setting' }, h('label', { for: 'engine-version', class: 'run-in' }, 'Engine version: '), version, ' ', update),
       appRow,
       supportRow,
+      debugRow,
       h('p', { class: 'setting-note' },
         'Sites change often. When a link that used to work fails, update the engine first.'),
       h('p', { class: 'setting-note' },
