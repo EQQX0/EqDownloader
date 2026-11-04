@@ -12,7 +12,7 @@ function fakeFetch(opts: { tag?: string; sums?: string; exe?: Buffer; assets?: s
   const tag = opts.tag ?? 'v0.1.6';
   const names = opts.assets ?? ['EqDownload.exe', 'EqDownload.apk', 'SHA256SUMS.txt'];
   const base = `https://github.com/EQQX0/EqDownloader/releases/download/${tag}/`;
-  return (async (input: RequestInfo | URL) => {
+  return (async (input: Parameters<typeof fetch>[0]) => {
     const url = String(input);
     if (url.endsWith('/releases/latest')) {
       return new Response(JSON.stringify({ tag_name: tag, assets: names.map((n) => ({ name: n, browser_download_url: base + n })) }), { status: 200 });
