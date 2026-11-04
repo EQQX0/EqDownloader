@@ -1,24 +1,18 @@
-/* EqDownload site. Same tokens as the app (docs/design/direction.md): bottle green and gold, Unbounded and Onest,
-   square corners, no rules, no shadows, no gradients. Light mode swaps the proportions. */
+/* EqDownload site. Same tokens as the app (docs/design/direction.md): navy, cream and amber, Unbounded and Onest,
+   square corners, no rules, no shadows, no gradients. Dark only. */
 @font-face { font-family: 'Unbounded'; font-weight: 800; font-display: swap; src: url('fonts/unbounded-latin-800-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Onest'; font-weight: 400; font-display: swap; src: url('fonts/onest-latin-400-normal.woff2') format('woff2'); }
 @font-face { font-family: 'Onest'; font-weight: 500; font-display: swap; src: url('fonts/onest-latin-500-normal.woff2') format('woff2'); }
 
 :root {
-  --bg: #eef0ea; --surface: #dfe5dc; --ink: #133621; --muted: #33503c; --track: #c3cfbf;
-  --accent: #133621; --accent-ink: #f4d96c; --inverse: #133621; --inverse-ink: #f4d96c;
+  --bg: #0B132B; --surface: #1C2541; --ink: #F4D6B0; --muted: #5BC0DE; --track: #3A506B;
+  --accent: #D97706; --accent-ink: #0B132B; --inverse: #D97706; --inverse-ink: #0B132B;
   --font-display: 'Unbounded', 'Arial Black', system-ui, sans-serif;
   --font-text: 'Onest', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
   --small: 0.9375rem; --body: clamp(1.0625rem, 1rem + 0.25vw, 1.1875rem); --lead: clamp(1.25rem, 1.1rem + 0.7vw, 1.625rem);
   --head: clamp(1.75rem, 1.3rem + 2vw, 2.5rem); --monument: clamp(2.1rem, 11.9vw, 22rem);
   --margin: clamp(1rem, 2.2vw, 2rem); --target: 3rem;
   --ease: cubic-bezier(0.22, 1, 0.36, 1);
-}
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #133621; --surface: #1a4429; --ink: #f4d96c; --muted: #d4c77c; --track: #2b5e3c;
-    --accent: #f4d96c; --accent-ink: #133621; --inverse: #f4d96c; --inverse-ink: #133621;
-  }
 }
 
 *, *::before, *::after { box-sizing: border-box; }

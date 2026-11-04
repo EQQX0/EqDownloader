@@ -23,7 +23,7 @@ export function windowOptions(preloadPath: string = path.join(__dirname, 'preloa
     minWidth: 640,
     minHeight: 480,
     show: false,
-    backgroundColor: '#111111',
+    backgroundColor: '#0B132B',
     title: 'EqDownload',
     autoHideMenuBar: true,
     webPreferences: {

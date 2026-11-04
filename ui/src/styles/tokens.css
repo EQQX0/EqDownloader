@@ -1,21 +1,21 @@
 /* Tokens. Direction "The name as a monument", seed 376266133 (docs/design/direction.md).
-   Two values carry every screen: bottle green and gold. Dark is the dealt sheet; light swaps the proportions
+   Navy ground, cream ink, amber action, cyan for secondary text. Dark is the dealt sheet; light swaps the proportions
    (a pale sage ground with green ink) and keeps gold for the inverse colophon and the text on the action.
    Every colour in the build comes from here. Plain custom properties under a media query (no light-dark()),
    so older Android WebViews get the full palette too. */
 :root {
-  color-scheme: light dark;
+  color-scheme: dark;
 
-  --bg: #eef0ea;
-  --surface: #dfe5dc;
-  --surface-press: #d0d9cc;
-  --ink: #133621;
-  --muted: #33503c;
-  --track: #c3cfbf;
-  --accent: #133621;
-  --accent-ink: #f4d96c;
-  --inverse: #133621;
-  --inverse-ink: #f4d96c;
+  --bg: #0B132B;
+  --surface: #1C2541;
+  --surface-press: #3A506B;
+  --ink: #F4D6B0;
+  --muted: #5BC0DE;
+  --track: #3A506B;
+  --accent: #D97706;
+  --accent-ink: #0B132B;
+  --inverse: #D97706;
+  --inverse-ink: #0B132B;
 
   --font-display: 'Unbounded', 'Arial Black', system-ui, sans-serif;
   --font-text: 'Onest', system-ui, 'Segoe UI', Roboto, sans-serif;
@@ -53,20 +53,6 @@
   --t-reveal: 700ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --bg: #133621;
-    --surface: #1a4429;
-    --surface-press: #22553a;
-    --ink: #f4d96c;
-    --muted: #d4c77c;
-    --track: #2b5e3c;
-    --accent: #f4d96c;
-    --accent-ink: #133621;
-    --inverse: #f4d96c;
-    --inverse-ink: #133621;
-  }
-}
 
 @media (pointer: coarse) {
   :root { --target: 3rem; } /* 48dp on touch screens (Android) */

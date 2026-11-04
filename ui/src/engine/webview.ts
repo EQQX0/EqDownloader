@@ -19,7 +19,7 @@ export function showWebViewUpdate(root: HTMLElement): void {
   box.setAttribute('role', 'alert');
   Object.assign(box.style, {
     position: 'fixed', inset: '0', display: 'flex', alignItems: 'center', justifyContent: 'center',
-    padding: '2rem', textAlign: 'center', background: '#133621', color: '#f4d96c',
+    padding: '2rem', textAlign: 'center', background: '#0B132B', color: '#F4D6B0',
     font: '600 1.25rem/1.4 system-ui, sans-serif',
   });
   box.textContent = 'Update Android System WebView to use EqDownload';
