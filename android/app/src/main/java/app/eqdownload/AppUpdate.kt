@@ -19,7 +19,7 @@ object AppUpdate {
 
     /** The SHA-256 listed for EqDownload.apk in the release's SHA256SUMS.txt, lowercase, or null. */
     fun expectedHash(sums: String): String? =
-        sums.lineSequence().mapNotNull { Regex("^([0-9a-fA-F]{64})\s+\*?${Regex.escape(APK)}\s*$").find(it.trim())?.groupValues?.get(1)?.lowercase() }.firstOrNull()
+        sums.lineSequence().mapNotNull { Regex("""^([0-9a-fA-F]{64})\s+\*?${Regex.escape(APK)}\s*$""").find(it.trim())?.groupValues?.get(1)?.lowercase() }.firstOrNull()
 
     fun sha256(file: File): String {
         val md = MessageDigest.getInstance("SHA-256")
