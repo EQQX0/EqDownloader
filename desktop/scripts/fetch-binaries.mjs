@@ -1,4 +1,4 @@
-// Downloads yt-dlp.exe and ffmpeg.exe into desktop/resources/bin, verifying SHA-256 against pins below.
+// Downloads yt-dlp.exe, ffmpeg.exe and aria2c.exe into desktop/resources/bin, verifying SHA-256 against pins below.
 // Idempotent: files that already match their pin are left alone. A mismatch is a hard failure.
 //
 // Updating a pin (trust on first use): change the tag/URL, set the hash to '' and run the script. It
@@ -18,13 +18,19 @@ const YTDLP_TAG = '2026.10.26';
 const FFMPEG_TAG = 'autobuild-2026-10-31-12-59';
 const FFMPEG_ZIP = 'ffmpeg-n8.1.3-27-g8dca1586f4-win64-gpl-8.1.zip';
 
+// aria2 publishes no checksum file. These pins are the SHA-256 of release-1.37.0's win-64bit zip and of the
+// aria2c.exe inside it, taken from two separate downloads that matched.
+const ARIA2_ZIP = 'aria2-1.37.0-win-64bit-build1';
 const PINS = {
+  aria2Zip: '67d015301eef0b612191212d564c5bb0a14b5b9c4796b76454276a4d28d9b288',
+  aria2Exe: 'be2099c214f63a3cb4954b09a0becd6e2e34660b886d4c898d260febfe9d70c2',
   ytdlpExe: 'f5389d3698ecde4ef06f4e6b1ce0294fe9ac1396228c8990b8d3416d6d177a7d',
   ffmpegZip: '401dffcf14c301082e1fc03b0bc876b92ea676bfc521fc56e80a1537d137034f',
   ffmpegExe: 'c46215f8889634396f0ac0acac738ef2145175e5b6caf28b3daa8ac9a9980c5f',
 };
 
 const YTDLP_URL = `https://github.com/yt-dlp/yt-dlp/releases/download/${YTDLP_TAG}/yt-dlp.exe`;
+const ARIA2_URL = `https://github.com/aria2/aria2/releases/download/release-1.37.0/${ARIA2_ZIP}.zip`;
 const FFMPEG_URL = `https://github.com/BtbN/FFmpeg-Builds/releases/download/${FFMPEG_TAG}/${FFMPEG_ZIP}`;
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
@@ -104,6 +110,23 @@ try {
     fs.copyFileSync(extracted, ffmpegDest);
     // The GPL text travels with the exe. It comes from the zip, whose hash is pinned above.
     fs.copyFileSync(license, licenseDest);
+  }
+  const ariaDest = path.join(binDir, 'aria2c.exe');
+  const ariaLicense = path.join(binDir, 'aria2c-COPYING.txt');
+  if ((await matches(ariaDest, PINS.aria2Exe)) && fs.existsSync(ariaLicense)) {
+    console.log('aria2c.exe: up to date');
+  } else {
+    console.log('aria2c.exe: downloading 1.37.0');
+    const zip = path.join(work, 'aria2.zip');
+    requirePin('aria2 zip', PINS.aria2Zip, await download(ARIA2_URL, zip));
+    const dir = path.join(work, 'a');
+    fs.mkdirSync(dir);
+    const tar = path.join(process.env.SystemRoot ?? 'C:\Windows', 'System32', 'tar.exe');
+    execFileSync(tar, ['-xf', zip, '-C', dir, `${ARIA2_ZIP}/aria2c.exe`, `${ARIA2_ZIP}/COPYING`], { stdio: 'inherit' });
+    const exe = path.join(dir, ARIA2_ZIP, 'aria2c.exe');
+    requirePin('aria2c.exe', PINS.aria2Exe, await sha256File(exe));
+    fs.copyFileSync(exe, ariaDest);
+    fs.copyFileSync(path.join(dir, ARIA2_ZIP, 'COPYING'), ariaLicense); // GPL text travels with the exe
   }
   console.log('binaries ready in', binDir);
 } finally {

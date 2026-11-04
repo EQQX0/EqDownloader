@@ -22,6 +22,8 @@ extraResources:
       - yt-dlp.exe
       - ffmpeg.exe
       - ffmpeg-LICENSE.txt
+      - aria2c.exe
+      - aria2c-COPYING.txt
   - from: ../ui/dist
     to: ui
     filter:

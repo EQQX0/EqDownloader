@@ -73,6 +73,7 @@ cd android && ./gradlew testDebugUnitTest assembleRelease
 ## Third-party software
 
 - [yt-dlp](https://github.com/yt-dlp/yt-dlp), Unlicense. Bundled.
+- [aria2](https://aria2.github.io), GPL-2.0, bundled as `aria2c.exe` (release 1.37.0) so downloads use 8 parallel connections. Its license text ships as `aria2c-COPYING.txt`. The Android app bundles aria2c through [youtubedl-android](https://github.com/yausername/youtubedl-android). Source: https://github.com/aria2/aria2.
 - [FFmpeg](https://ffmpeg.org), built with GPL components. The Windows exe bundles a GPL build from [BtbN/FFmpeg-Builds](https://github.com/BtbN/FFmpeg-Builds), with its license text shipped as `ffmpeg-LICENSE.txt` next to ffmpeg.exe. The Android app bundles the ffmpeg library from [youtubedl-android](https://github.com/yausername/youtubedl-android). The source for every bundled FFmpeg build is available from those projects. If you cannot find it there, open an issue and the maintainer will send you the source for the exact version you have.
 - [Electron](https://www.electronjs.org), [Capacitor](https://capacitorjs.com) and [youtubedl-android](https://github.com/yausername/youtubedl-android).
 - Fonts are listed with their licenses in `ui/public/fonts/*-OFL.txt`.
