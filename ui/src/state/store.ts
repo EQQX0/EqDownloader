@@ -84,6 +84,7 @@ function parseLibrary(raw: string | null): DownloadItem[] {
         filePath: typeof o.filePath === 'string' ? o.filePath : null,
         error: null,
         thumbnail: typeof o.thumbnail === 'string' ? o.thumbnail : null,
+        tookMs: typeof o.tookMs === 'number' && o.tookMs >= 0 ? o.tookMs : undefined,
       });
       if (out.length >= LIBRARY_MAX) break;
     }
@@ -157,12 +158,27 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     const key = libraryKey(item);
     const library = [item, ...state.library.filter((i) => libraryKey(i) !== key)].slice(0, LIBRARY_MAX);
     state.library = library;
-    write(KEY_LIBRARY, JSON.stringify(library.map(({ id, url, title, preset, filePath, thumbnail }) => ({ id, url, title, preset, filePath, thumbnail }))));
+    write(KEY_LIBRARY, JSON.stringify(library.map(({ id, url, title, preset, filePath, thumbnail, tookMs }) => ({ id, url, title, preset, filePath, thumbnail, tookMs }))));
+  };
+  // While something is downloading the screens redraw once a second so the timers run.
+  let tick: ReturnType<typeof setInterval> | null = null;
+  const syncTick = (): void => {
+    const active = state.items.some((i) => i.state === 'queued' || i.state === 'running');
+    if (active && !tick) tick = setInterval(emit, 1000);
+    else if (!active && tick) {
+      clearInterval(tick);
+      tick = null;
+    }
   };
   const upsert = (item: DownloadItem): void => {
-    const next = withTitle(item);
-    remember(next);
     const idx = state.items.findIndex((i) => i.id === item.id);
+    const prevItem = idx >= 0 ? state.items[idx] : undefined;
+    const now = Date.now();
+    const ended = item.state === 'done' || item.state === 'failed' || item.state === 'cancelled';
+    const startedAt = prevItem?.startedAt ?? now;
+    const finishedAt = ended ? (prevItem?.finishedAt ?? now) : undefined;
+    const next = withTitle({ ...item, startedAt, finishedAt, tookMs: finishedAt ? finishedAt - startedAt : undefined });
+    remember(next);
     const items = idx >= 0 ? state.items.map((i, n) => (n === idx ? next : i)) : [...state.items, next];
     const wasFailed = idx >= 0 && state.items[idx]!.state === 'failed';
     const patch: Partial<State> = { items };
@@ -171,6 +187,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       if (ui.offerUpdate) patch.error = ui;
     }
     set(patch);
+    syncTick();
   };
 
   // When the engine says it is out of date, update it once per session and try again. This is the only time
@@ -281,7 +298,8 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         return;
       }
       const seq = ++probeSeq;
-      set({ error: null, probe: null, probing: true });
+      // Show the quality buttons at once with the link as the title; the real title and picture fill in when yt-dlp answers.
+      set({ error: null, probe: { url, title: url, thumbnail: null, durationSec: null, formats: [] }, probing: true });
       try {
         let probe;
         try {
@@ -293,7 +311,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         if (seq === probeSeq) set({ probe, probing: false });
       } catch (e) {
         if (seq === probeSeq) {
-          set({ probing: false, error: describeError(asEngineError(e), state.settings.destination) });
+          set({ probe: null, probing: false, error: describeError(asEngineError(e), state.settings.destination) });
         }
       }
     },
@@ -302,6 +320,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       const probe = state.probe;
       if (!probe || starting) return;
       starting = true;
+      probeSeq++; // a late answer for this link must not bring the result back after the download starts
       try {
         set({ error: null });
         await begin(probe.url, preset, probe.title, probe.thumbnail ?? null);

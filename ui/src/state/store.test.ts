@@ -464,3 +464,32 @@ describe('library', () => {
     expect(s.state.library).toEqual([]);
   });
 });
+
+describe('speed and timing', () => {
+  it('shows the quality buttons at once, with the link as the title, then fills in the real title', async () => {
+    let release!: () => void;
+    const engine = new TestEngine();
+    engine.probeGate = new Promise<void>((r) => (release = r));
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    const pending = store.submitLink('https://a.test/v');
+    expect(store.state.probe?.title).toBe('https://a.test/v');
+    expect(store.state.probing).toBe(true);
+    release();
+    await pending;
+    expect(store.state.probe?.title).toBe('Probe title');
+  });
+
+  it('records how long a download took and keeps it in the library', async () => {
+    const engine = new TestEngine();
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    await store.submitLink('https://a.test/v');
+    await store.startDownload('best');
+    engine.emit({ ...engine.find('t-1'), state: 'running', percent: 10 });
+    engine.emit({ ...engine.find('t-1'), state: 'done', percent: 100, filePath: '/d/v.mp4' });
+    const done = store.state.items.find((i) => i.id === 't-1')!;
+    expect(typeof done.tookMs).toBe('number');
+    expect(store.state.library[0]?.tookMs).toBe(done.tookMs);
+  });
+});

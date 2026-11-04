@@ -249,8 +249,9 @@ body::before {
   text-overflow: ellipsis;
 }
 .job-status {
+  font-size: 0.875rem;
   display: flex;
-  gap: 0.6em;
+  gap: 0.4em;
   min-width: 0;
   white-space: nowrap;
   overflow: hidden;
@@ -259,7 +260,9 @@ body::before {
 }
 .job-state, .file-state { font-weight: 500; color: var(--ink); }
 .job-error { overflow: hidden; text-overflow: ellipsis; }
-.job-error:empty, .job-detail:empty, .job-percent:empty { display: none; }
+.job-error:empty, .job-detail:empty, .job-percent:empty, .job-speed:empty { display: none; }
+@media (max-width: 30em) { .job-speed { display: none; } } /* one line on a phone */
+.job .job-action { width: 2.75rem; min-width: 0; padding-inline: 0; justify-content: center; }
 .job .meter { margin-top: 0.15rem; }
 .job-action, .file-action { min-height: 2.5rem; padding-inline: var(--space-3); grid-column: 3; grid-row: 1; }
 .job[data-state='failed'] .meter-fill,

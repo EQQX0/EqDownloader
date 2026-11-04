@@ -1,4 +1,5 @@
 import type { DownloadItem } from '../engine';
+import { formatDuration } from '../lib/format';
 import { safeImageSrc } from '../lib/image';
 import { h } from '../lib/dom';
 import type { ScreenFactory } from './types';
@@ -23,7 +24,7 @@ export const createLibrary: ScreenFactory = (store) => {
       'li',
       { testid: `item-${item.id}`, class: 'file' },
       thumb,
-      h('div', { class: 'file-main' }, title, h('span', { class: 'file-state', testid: 'item-state' }, 'Done')),
+      h('div', { class: 'file-main' }, title, h('span', { class: 'file-state' }, h('span', { testid: 'item-state' }, 'Done'), item.tookMs !== undefined ? ` · ${formatDuration(item.tookMs / 1000)}` : '')),
       open,
     );
   }
@@ -31,7 +32,7 @@ export const createLibrary: ScreenFactory = (store) => {
   function update(): void {
     const done = store.state.library;
     empty.hidden = done.length > 0;
-    const next = JSON.stringify(done.map((i) => [i.id, i.title, i.filePath, i.thumbnail]));
+    const next = JSON.stringify(done.map((i) => [i.id, i.title, i.filePath, i.thumbnail, i.tookMs]));
     if (next === key) return;
     key = next;
     list.replaceChildren(...done.map(row));

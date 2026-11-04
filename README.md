@@ -58,7 +58,7 @@ Some sites need a login, an age check, or a different region. EqDownload shows t
 
 ## Downloads and Library
 
-The Downloads screen shows only what is downloading now and the last download. The Library keeps every finished download (newest first, up to 200) on the device, so it survives app updates and restarts. It is stored in the app's own local storage and never sent anywhere.
+The Downloads screen shows only what is downloading now and the last download. A running download shows how long it has run and the estimated time left (for example `0:42 · ~1:10`); a finished one shows how long it took. The Library keeps every finished download (newest first, up to 200) on the device, so it survives app updates and restarts. It is stored in the app's own local storage and never sent anywhere.
 
 ## Privacy
 

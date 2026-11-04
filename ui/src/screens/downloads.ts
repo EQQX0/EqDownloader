@@ -1,7 +1,7 @@
 import type { DownloadItem } from '../engine';
 import { safeImageSrc } from '../lib/image';
 import { h } from '../lib/dom';
-import { formatPercent, formatSpeed } from '../lib/format';
+import { formatDuration, formatEta, formatPercent, formatSpeed } from '../lib/format';
 import { STATE_LABELS } from '../lib/labels';
 import { createMeter, type Meter } from '../lib/meter';
 import { describeError } from '../state/errors';
@@ -16,6 +16,7 @@ interface Row {
   bar: HTMLProgressElement;
   meter: Meter;
   detail: HTMLElement;
+  speed: HTMLElement;
   error: HTMLElement;
   cancel: HTMLButtonElement;
   retry: HTMLButtonElement;
@@ -36,18 +37,19 @@ export const createDownloads: ScreenFactory = (store) => {
     const percent = h('span', { testid: 'item-percent', class: 'job-percent' });
     const bar = h('progress', { max: '100', value: '0', 'aria-labelledby': titleId, class: 'visually-hidden' });
     const meter = createMeter('job-meter');
+    const speed = h('span', { class: 'job-speed' });
     const detail = h('span', { class: 'job-detail' });
     const error = h('span', { testid: 'item-error', class: 'job-error' });
-    const cancel = h('button', { type: 'button', testid: 'item-cancel', class: 'button job-action' }, 'Cancel');
-    const retry = h('button', { type: 'button', testid: 'item-retry', class: 'button job-action' }, 'Retry');
+    const cancel = h('button', { type: 'button', testid: 'item-cancel', class: 'button job-action', 'aria-label': 'Cancel', title: 'Cancel' }, '✕');
+    const retry = h('button', { type: 'button', testid: 'item-retry', class: 'button job-action', 'aria-label': 'Retry', title: 'Retry' }, '↻');
     cancel.addEventListener('click', () => void store.cancel(item.id));
     retry.addEventListener('click', () => void store.retry(item.id));
-    const status = h('span', { class: 'job-status' }, state, percent, detail, error);
+    const status = h('span', { class: 'job-status' }, state, percent, speed, detail, error);
     const li = h(
       'li', { testid: `item-${item.id}`, class: 'job' },
       thumb, h('div', { class: 'job-main' }, title, status, bar, meter.el), cancel, retry,
     );
-    return { li, title, thumb, state, percent, bar, meter, detail, error, cancel, retry };
+    return { li, title, thumb, state, percent, bar, meter, detail, speed, error, cancel, retry };
   }
 
   function update(): void {
@@ -77,7 +79,16 @@ export const createDownloads: ScreenFactory = (store) => {
       row.bar.value = Number.isFinite(item.percent) ? Math.min(100, Math.max(0, item.percent)) : 0;
       row.meter.set(row.bar.value);
       row.li.dataset.state = item.state;
-      row.detail.textContent = item.state === 'running' ? formatSpeed(item.speedBps) : '';
+      const elapsed = (item.tookMs ?? Date.now() - (item.startedAt ?? Date.now())) / 1000;
+      row.speed.textContent = item.state === 'running' ? formatSpeed(item.speedBps) : '';
+      row.detail.textContent =
+        item.state === 'running'
+          ? `${formatDuration(elapsed)} · ~${formatEta(item.etaSec)}`
+          : item.state === 'queued'
+            ? formatDuration(elapsed)
+            : item.state === 'done' && item.tookMs !== undefined
+              ? `took ${formatDuration(elapsed)}`
+              : '';
       const msg = item.state === 'failed' && item.error ? describeError(item.error, settings.destination).message : '';
       row.error.textContent = msg;
       row.error.hidden = !msg;

@@ -26,3 +26,9 @@ export function formatEta(sec: number | null | undefined): string {
   const r = String(s % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${r}` : `${m}:${r}`;
 }
+
+/** Seconds as m:ss, or h:mm:ss from an hour up. Used for how long a download has run or took. */
+export function formatDuration(sec: number | null | undefined): string {
+  if (typeof sec !== 'number' || !Number.isFinite(sec) || sec < 0) return '0:00';
+  return formatEta(Math.floor(sec));
+}

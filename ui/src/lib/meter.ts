@@ -29,12 +29,14 @@ export function createMeter(extraClass = ''): Meter {
     const p = Number.isFinite(percent) ? Math.min(100, Math.max(0, percent)) : 0;
     if (p === current) return;
     const to = `scaleX(${p / 100})`;
+    const jump = Math.abs(p - Math.max(current, 0));
     current = p;
     if (typeof fill.animate !== 'function') return;
     // Start from wherever the bar is now (mid-flight included), then drop the old animation.
     const from = anim ? getComputedStyle(fill).transform : 'scaleX(0)';
     const next = fill.animate([{ transform: from === 'none' ? 'scaleX(0)' : from }, { transform: to }], {
-      duration: reduce() ? 0 : 700,
+      // A big jump (progress reported in few steps) glides over about two seconds instead of snapping.
+      duration: reduce() ? 0 : jump >= 30 ? 2200 : jump >= 10 ? 1200 : 700,
       easing: 'cubic-bezier(0.22, 1, 0.36, 1)',
       fill: 'forwards',
     });

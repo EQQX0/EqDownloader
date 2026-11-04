@@ -36,6 +36,11 @@ export interface DownloadItem {
   error: EngineError | null;
   /** Picture of the video, added by the app from the link check. Engines do not set it. */
   thumbnail?: string | null;
+  /** When the app first saw this download, and when it ended (ms since the epoch). Added by the app, not the engine. */
+  startedAt?: number;
+  finishedAt?: number;
+  /** How long a finished download took, in ms. Kept in the library. */
+  tookMs?: number;
 }
 
 export interface Engine {
