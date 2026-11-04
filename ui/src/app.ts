@@ -51,7 +51,7 @@ const errorBox = h('div', { role: 'alert', class: 'error' }, errorText);
 const main = h('main', { id: 'main', class: 'main' });
 const header = h(
   'header', { class: 'bar' },
-  h('span', { class: 'brand' }, h('img', { class: 'brand-logo', src: './logo.png', alt: '', width: '36', height: '36' }), h('span', { class: 'brand-name' }, 'EqDownload')),
+  h('span', { class: 'brand' }, h('img', { class: 'brand-logo', src: './logo.png', alt: '', width: '56', height: '56' }), h('span', { class: 'brand-name' }, 'EqDownload')),
   h('nav', { 'aria-label': 'Main', class: 'nav' }, navList),
 );
 // The name returns at full width in the inverse colours, with the privacy promise it keeps.

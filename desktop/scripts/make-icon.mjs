@@ -8,7 +8,7 @@ import { fileURLToPath } from 'node:url';
 import { chromium } from '@playwright/test';
 
 const here = dirname(fileURLToPath(import.meta.url));
-const pngPath = join(here, '..', '..', 'design', 'icon.png');
+const pngPath = join(here, '..', '..', 'design', 'icon-glyph.png');
 const outPath = join(here, '..', 'build', 'icon.ico');
 const SIZES = [16, 24, 32, 48, 64, 128, 256];
 

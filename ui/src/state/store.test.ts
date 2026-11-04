@@ -379,3 +379,43 @@ describe('app update', () => {
     expect(store.state.error?.code).toBe('network');
   });
 });
+
+describe('automatic engine update', () => {
+  class OutdatedEngine extends TestEngine {
+    updates = 0;
+    failProbes = 1;
+    override async probe(url: string): Promise<ProbeResult> {
+      if (this.failProbes > 0) {
+        this.failProbes--;
+        throw { code: 'outdated', message: 'HTTP Error 403' } satisfies EngineError;
+      }
+      return super.probe(url);
+    }
+    override async updateEngine(): Promise<string> {
+      this.updates++;
+      return '2026.11.01';
+    }
+  }
+
+  it('updates the engine once and retries when a probe says it is out of date', async () => {
+    const engine = new OutdatedEngine();
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    await store.submitLink('https://a.test/v');
+    expect(engine.updates).toBe(1);
+    expect(store.state.probe?.title).toBe('Probe title');
+    expect(store.state.error).toBeNull();
+    expect(store.state.settings.engineVersion).toBe('2026.11.01');
+  });
+
+  it('does not update again in the same session', async () => {
+    const engine = new OutdatedEngine();
+    engine.failProbes = 5;
+    const store = createStore(engine, { storage: null });
+    await store.ready;
+    await store.submitLink('https://a.test/v');
+    await store.submitLink('https://a.test/w');
+    expect(engine.updates).toBe(1);
+    expect(store.state.error?.code).toBe('outdated');
+  });
+});

@@ -127,7 +127,35 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     set(patch);
   };
 
-  engine.onProgress(upsert);
+  // When the engine says it is out of date, update it once per session and try again. This is the only time
+  // the app contacts GitHub without a button press, and only after a download or probe already failed that way.
+  let autoUpdated = false;
+  const autoUpdate = async (): Promise<boolean> => {
+    if (autoUpdated) return false;
+    autoUpdated = true;
+    try {
+      const v = await engine.updateEngine();
+      state.settings = { ...state.settings, engineVersion: v };
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const upsertThenRecover = (item: DownloadItem): void => {
+    const prev = state.items.find((i) => i.id === item.id);
+    upsert(item);
+    if (item.state === 'failed' && item.error?.code === 'outdated' && prev?.state !== 'failed' && !autoUpdated) {
+      const title = titles.get(item.id) ?? (item.title !== item.url ? item.title : null);
+      void autoUpdate().then((ok) => {
+        if (!ok) return;
+        set({ error: null });
+        void begin(item.url, item.preset, title);
+      });
+    }
+  };
+
+  engine.onProgress(upsertThenRecover);
 
   const ready = (async () => {
     if (read(KEY_DEST) === null && host.getDefaultFolder) {
@@ -199,7 +227,13 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       const seq = ++probeSeq;
       set({ error: null, probe: null, probing: true });
       try {
-        const probe = await engine.probe(url);
+        let probe;
+        try {
+          probe = await engine.probe(url);
+        } catch (first) {
+          if (asEngineError(first).code !== 'outdated' || !(await autoUpdate())) throw first;
+          probe = await engine.probe(url);
+        }
         if (seq === probeSeq) set({ probe, probing: false });
       } catch (e) {
         if (seq === probeSeq) {

@@ -30,8 +30,9 @@ a { color: inherit; }
 .bar { padding: calc(env(safe-area-inset-top) + 0.75rem) var(--margin) 0; }
 .bar nav { display: flex; flex-wrap: wrap; justify-content: flex-end; align-items: center; gap: 0.25rem 1.5rem; font-size: var(--small); font-weight: 500; }
 .bar a { min-height: var(--target); display: inline-flex; align-items: center; text-decoration: none; }
+.hero-logo { display: block; width: clamp(7rem, 12vw, 10rem); height: auto; aspect-ratio: 1; border-radius: 22%; margin-bottom: clamp(1rem, 2.5vw, 2rem); box-shadow: 0 0 0 3px var(--muted); }
 .bar .logo { margin-right: auto; }
-.bar .logo img { display: block; width: 3rem; height: 3rem; }
+.bar .logo img { display: block; width: 3.5rem; height: 3.5rem; border-radius: 22%; }
 .bar a:hover { text-decoration: underline; text-underline-offset: 4px; }
 .bar .action { background: var(--accent); color: var(--accent-ink); padding: 0 1.1rem; transition: transform 140ms var(--ease); }
 .bar .action:hover { text-decoration: none; }
