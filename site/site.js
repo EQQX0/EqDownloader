@@ -25,7 +25,11 @@
     e.preventDefault();
     const link = form.elements.url.value.trim();
     if (!link) return;
-    say('Looking...');
+    out.textContent = '';
+    const lp = document.createElement('p'); lp.textContent = 'Looking...';
+    const bar = document.createElement('div'); bar.className = 'loader'; bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'Reading the link');
+    bar.append(document.createElement('span'), document.createElement('span'));
+    out.append(lp, bar);
     const go = form.querySelector('button');
     go.disabled = true;
     try {
