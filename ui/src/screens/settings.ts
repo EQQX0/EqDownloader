@@ -90,6 +90,7 @@ export const createSettings: ScreenFactory = (store) => {
     appVer.textContent = s.appVersion ?? 'Unknown';
     const u = store.state.appUpdate;
     appBtn.disabled = u.status === 'checking' || u.status === 'installing' || u.status === 'installed';
+    appBtn.classList.toggle('button-install', u.status === 'available');
     appBtn.textContent = u.status === 'available' ? `Install ${u.version}` : u.status === 'checking' ? 'Checking...' : 'Check for app update';
     appNote.textContent =
       u.status === 'current' ? 'You have the newest version.'
