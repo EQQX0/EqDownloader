@@ -14,6 +14,7 @@ export const CLIPBOARD_PREFIXES = [
   'https://www.instagram.com/',
   'https://youtube.com/',
   'https://youtu.be/',
+  'https://music.youtube.com/',
 ] as const;
 
 export function wantedClipboardLink(text: string): string | null {

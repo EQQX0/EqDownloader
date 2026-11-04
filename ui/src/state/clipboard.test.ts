@@ -33,6 +33,7 @@ describe('wireClipboard', () => {
     await flush();
     expect(store.submitLink).not.toHaveBeenCalled();
     expect(wantedClipboardLink('look https://youtu.be/abc')).toBeNull();
+    expect(wantedClipboardLink('https://music.youtube.com/watch?v=x')).toBe('https://music.youtube.com/watch?v=x');
     expect(wantedClipboardLink('  https://vt.tiktok.com/ZS1/ ')).toBe('https://vt.tiktok.com/ZS1/');
   });
 
