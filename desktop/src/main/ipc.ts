@@ -85,3 +85,24 @@ function safeIsDir(isDir: (p: string) => boolean, p: string): boolean {
 export function serializeAllowedFolders(folders: readonly string[]): string {
   return JSON.stringify({ folders: mergeFolders([], folders) }, null, 2);
 }
+
+/**
+ * True when an IPC call comes from the app's own page: the loaded UI file (any hash/query) or, in dev,
+ * the dev server origin. Anything else (other frames, remote pages) is refused.
+ */
+export function isTrustedSender(url: string | undefined, appFileUrl: string, devOrigin?: string): boolean {
+  if (!url) return false;
+  try {
+    const u = new URL(url);
+    const app = new URL(appFileUrl);
+    // Same file, ignoring hash and query, and tolerating encoding and letter-case differences in the path
+    // (Windows paths are case-insensitive, and Chromium and Node may escape spaces differently).
+    if (u.protocol === 'file:' && app.protocol === 'file:') {
+      const norm = (p: string): string => decodeURIComponent(p).replace(/\\/g, '/').toLowerCase();
+      if (norm(u.pathname) === norm(app.pathname)) return true;
+    }
+    return !!devOrigin && u.origin === new URL(devOrigin).origin;
+  } catch {
+    return false;
+  }
+}

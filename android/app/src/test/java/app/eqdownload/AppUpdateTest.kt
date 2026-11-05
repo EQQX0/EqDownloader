@@ -10,6 +10,32 @@ import org.junit.Test
 class AppUpdateTest {
     private val base = "https://github.com/EQQX0/EqDownloader/releases/download/v0.1.6/"
 
+    @Test fun trustsOnlyGithubHttpsHosts() {
+        assertTrue(AppUpdate.isTrustedHost("https://github.com/EQQX0/EqDownloader/releases/download/v1/x"))
+        assertTrue(AppUpdate.isTrustedHost("https://api.github.com/repos/x"))
+        assertTrue(AppUpdate.isTrustedHost("https://objects.githubusercontent.com/abc?sig=1"))
+        assertTrue(AppUpdate.isTrustedHost("https://release-assets.githubusercontent.com/a"))
+    }
+
+    @Test fun rejectsUntrustedRedirectTargets() {
+        assertFalse(AppUpdate.isTrustedHost("http://github.com/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://example.com/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://github.com.evil.test/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://evilgithub.com/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://evilgithubusercontent.com/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://githubusercontent.com.evil.test/x"))
+        assertFalse(AppUpdate.isTrustedHost("https://user@evil.test@github.com/x"))
+        assertFalse(AppUpdate.isTrustedHost("not a url"))
+        assertFalse(AppUpdate.isTrustedHost("file:///etc/passwd"))
+    }
+
+    @Test fun refusesAReleaseThatIsNotNewer() {
+        AppUpdate.requireNewer("0.1.6", "0.1.5")
+        assertThrows(IllegalStateException::class.java) { AppUpdate.requireNewer("0.1.5", "0.1.5") }
+        assertThrows(IllegalStateException::class.java) { AppUpdate.requireNewer("0.1.4", "0.1.5") }
+        assertThrows(IllegalStateException::class.java) { AppUpdate.requireNewer("0.1.6", "garbage") }
+    }
+
     @Test fun comparesVersions() {
         assertTrue(AppUpdate.isNewer("v0.1.6", "0.1.5"))
         assertTrue(AppUpdate.isNewer("0.2.0", "0.1.9"))

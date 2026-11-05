@@ -21,6 +21,11 @@ object DebugLog {
         max = maxChars
     }
 
+    private val URL_RE = Regex("""(https?://[^\s?#"'<>]*)[?#][^\s"'<>]*""")
+
+    /** Drops the query string and fragment from every URL in [text]; they can carry signed tokens. */
+    fun redactUrls(text: String): String = URL_RE.replace(text) { it.groupValues[1] + "?…" }
+
     /** True for the once-a-second progress lines, which would drown out everything else. */
     fun isProgressLine(line: String): Boolean = PROGRESS.containsMatchIn(line)
 
@@ -29,7 +34,7 @@ object DebugLog {
         val f = file ?: return
         try {
             val stamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.US).format(Date())
-            f.appendText("$stamp [$tag] ${message.trimEnd()}\n")
+            f.appendText("$stamp [$tag] ${redactUrls(message.trimEnd())}\n")
             if (f.length() > max) {
                 val keep = f.readText().takeLast(max / 2)
                 f.writeText(keep.substringAfter('\n', keep))

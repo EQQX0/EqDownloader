@@ -34,16 +34,46 @@ object AppUpdate {
         return md.digest().joinToString("") { "%02x".format(it) }
     }
 
+    /** True only for an https address on github.com, api.github.com or a *.githubusercontent.com host. */
+    fun isTrustedHost(url: String): Boolean {
+        val u = try { java.net.URI(url) } catch (_: Exception) { return false }
+        if (u.scheme != "https" || u.rawUserInfo != null) return false
+        val host = u.host?.lowercase() ?: return false
+        return host == "github.com" || host == "api.github.com" || host.endsWith(".githubusercontent.com")
+    }
+
+    /** Throws unless [latest] is a newer version than [current]. */
+    fun requireNewer(latest: String, current: String) {
+        if (!isNewer(latest, current)) throw IllegalStateException("EqDownload is already up to date ($current)")
+    }
+
+    private const val MAX_REDIRECTS = 5
+
     private fun get(url: String, limit: Long): java.io.InputStream {
         require(url.startsWith(DOWNLOAD_PREFIX)) { "Unexpected download address" }
-        val c = URL(url).openConnection() as HttpURLConnection // GitHub's download links redirect to its asset host
-        c.connectTimeout = 15_000
-        c.readTimeout = 30_000
-        c.setRequestProperty("User-Agent", "EqDownload")
-        if (c.responseCode != 200) throw IllegalStateException("GitHub returned ${c.responseCode}")
-        val len = c.contentLengthLong
-        require(len <= limit) { "The update file is larger than expected" }
-        return c.inputStream
+        var next = url
+        for (hop in 0..MAX_REDIRECTS) {
+            val c = URL(next).openConnection() as HttpURLConnection // GitHub's download links redirect to its asset host
+            c.instanceFollowRedirects = false
+            c.connectTimeout = 15_000
+            c.readTimeout = 30_000
+            c.setRequestProperty("User-Agent", "EqDownload")
+            val code = c.responseCode
+            if (code in 300..399) {
+                val loc = c.getHeaderField("Location")
+                c.disconnect()
+                if (loc == null || hop == MAX_REDIRECTS) throw IllegalStateException("GitHub redirected too many times")
+                val target = try { URL(URL(next), loc).toString() } catch (_: Exception) { throw IllegalStateException("Unexpected download address") }
+                require(isTrustedHost(target)) { "Unexpected download address" }
+                next = target
+                continue
+            }
+            if (code != 200) throw IllegalStateException("GitHub returned $code")
+            val len = c.contentLengthLong
+            require(len <= limit) { "The update file is larger than expected" }
+            return c.inputStream
+        }
+        throw IllegalStateException("GitHub redirected too many times")
     }
 
     /**
@@ -108,6 +138,7 @@ object AppUpdate {
     fun fetchLatest(): Release {
         val c = URL(LATEST_API).openConnection() as HttpURLConnection
         try {
+            c.instanceFollowRedirects = false
             c.connectTimeout = 15_000
             c.readTimeout = 15_000
             c.setRequestProperty("Accept", "application/vnd.github+json")

@@ -247,6 +247,7 @@ describe('YtDlpEngine behaviour', () => {
     const stale = path.join(dir, '.eqdl-crashed');
     fs.mkdirSync(stale);
     fs.writeFileSync(path.join(stale, 'x.part'), 'p');
+    fs.writeFileSync(path.join(stale, '.eqdl-owner'), '');
     const old = new Date(Date.now() - 11 * 60 * 1000);
     fs.utimesSync(stale, old, old);
     fs.writeFileSync(path.join(dir, 'keep.txt'), 'k');
@@ -261,16 +262,22 @@ describe('YtDlpEngine behaviour', () => {
   it('keeps fresh .eqdl-* folders and removes only those older than 10 minutes', async () => {
     const oldDir = path.join(dir, '.eqdl-old');
     const newDir = path.join(dir, '.eqdl-new');
+    const foreign = path.join(dir, '.eqdl-foreign');
     fs.mkdirSync(oldDir);
     fs.mkdirSync(newDir);
+    fs.mkdirSync(foreign);
+    fs.writeFileSync(path.join(oldDir, '.eqdl-owner'), '');
+    fs.writeFileSync(path.join(newDir, '.eqdl-owner'), '');
     const old = new Date(Date.now() - 11 * 60 * 1000);
     fs.utimesSync(oldDir, old, old);
+    fs.utimesSync(foreign, old, old);
     const e = makeEngine();
     const p = waitFor(e, (i) => i.state === 'done');
     await e.start('https://example.test/v', 'best', dir);
     await p;
     expect(fs.existsSync(oldDir)).toBe(false);
     expect(fs.existsSync(newDir)).toBe(true);
+    expect(fs.existsSync(foreign)).toBe(true);
   });
 
   it('concurrent first starts into a fresh destination do not sweep each other', async () => {

@@ -20,21 +20,29 @@ MAX_BYTES = 80_000_000
 CHUNK = 512 * 1024  # a thread hop per chunk: big chunks keep it fast
 
 
+def addr_is_public(addr: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(addr.split('%')[0])
+    except ValueError:
+        return False
+    return (getattr(ip, 'ipv4_mapped', None) or ip).is_global
+
+
 def host_is_public(host: str) -> bool:
     try:
         infos = socket.getaddrinfo(host, None)
-    except OSError:
+        return bool(infos) and all(addr_is_public(i[4][0]) for i in infos)
+    except (OSError, ValueError):
         return False
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
-            return False
-    return bool(infos)
 
 
 def public_http_url(raw: str) -> bool:
-    u = urlparse(raw or '')
-    return u.scheme in ('http', 'https') and bool(u.hostname) and u.port in (None, 80, 443) and host_is_public(u.hostname)
+    try:
+        u = urlparse(raw or '')
+        host, port = u.hostname, u.port
+    except ValueError:
+        return False
+    return u.scheme in ('http', 'https') and bool(host) and port in (None, 80, 443) and host_is_public(host)
 
 
 def resolve(page_url: str, format_id: str):
@@ -76,14 +84,23 @@ OPENER = urllib.request.build_opener(SafeRedirect)
 def open_media(media, headers):
     resp = OPENER.open(urllib.request.Request(media, headers=headers), timeout=20)
     # DNS can change between the check and the connect, so check the address actually reached too.
+    # Fail closed: if the peer address cannot be read, refuse.
     try:
-        peer = ipaddress.ip_address(resp.fp.raw._sock.getpeername()[0])
-        if peer.is_private or peer.is_loopback or peer.is_link_local or peer.is_multicast or peer.is_reserved or peer.is_unspecified:
-            resp.close()
-            raise PermissionError('peer')
-    except AttributeError:
-        pass
+        peer = resp.fp.raw._sock.getpeername()[0]
+    except (AttributeError, OSError):
+        resp.close()
+        raise PermissionError('peer')
+    if not addr_is_public(peer):
+        resp.close()
+        raise PermissionError('peer')
     return resp
+
+
+def safe_type(ct) -> str:
+    ct = (ct or '').strip()
+    if re.fullmatch(r'(video|audio)/[A-Za-z0-9.+-]+(\s*;[ -~]*)?', ct, re.I) or ct.lower() == 'application/octet-stream':
+        return ct
+    return 'application/octet-stream'
 
 
 def safe_name(title: str, ext: str) -> str:
@@ -106,12 +123,6 @@ async def app(scope, receive, send):
     fid = (qs.get('f') or [''])[0]
     if not fid or len(page) > 2000 or not public_http_url(page):
         return await reply_json(send, 400, {'error': 'Bad link.'})
-    try:
-        media, headers, title, ext = await asyncio.to_thread(resolve, page, fid)
-    except (LookupError, PermissionError):
-        return await reply_json(send, 422, {'error': 'That file is not available.'})
-    except Exception:
-        return await reply_json(send, 422, {'error': 'Could not read that link.'})
     rng = (qs.get('r') or [''])[0]
     if rng and not re.fullmatch(r'\d{1,9}-\d{1,9}', rng):
         return await reply_json(send, 400, {'error': 'Bad range.'})
@@ -119,6 +130,13 @@ async def app(scope, receive, send):
         a, b = (int(x) for x in rng.split('-'))
         if b < a or b - a >= MAX_BYTES:
             return await reply_json(send, 400, {'error': 'Bad range.'})
+    try:
+        media, headers, title, ext = await asyncio.to_thread(resolve, page, fid)
+    except (LookupError, PermissionError):
+        return await reply_json(send, 422, {'error': 'That file is not available.'})
+    except Exception:
+        return await reply_json(send, 422, {'error': 'Could not read that link.'})
+    if rng:
         headers = {**headers, 'Range': f'bytes={a}-{b}'}
     try:
         resp = await asyncio.to_thread(open_media, media, headers)
@@ -138,7 +156,7 @@ async def app(scope, receive, send):
         return await reply_json(send, 413, {'error': 'That file is too large for this page. Use the app.'})
     name = safe_name(title, ext)
     head = [
-        (b'content-type', (resp.headers.get('Content-Type') or 'application/octet-stream').encode()),
+        (b'content-type', safe_type(resp.headers.get('Content-Type')).encode()),
         (b'content-disposition', f"attachment; filename=\"download.{ext}\"; filename*=UTF-8''{quote(name)}".encode()),
         (b'cache-control', b'no-store'),
     ]

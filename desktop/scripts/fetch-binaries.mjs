@@ -121,7 +121,7 @@ try {
     requirePin('aria2 zip', PINS.aria2Zip, await download(ARIA2_URL, zip));
     const dir = path.join(work, 'a');
     fs.mkdirSync(dir);
-    const tar = path.join(process.env.SystemRoot ?? 'C:\Windows', 'System32', 'tar.exe');
+    const tar = path.join(process.env.SystemRoot ?? 'C:\\Windows', 'System32', 'tar.exe');
     execFileSync(tar, ['-xf', zip, '-C', dir, `${ARIA2_ZIP}/aria2c.exe`, `${ARIA2_ZIP}/COPYING`], { stdio: 'inherit' });
     const exe = path.join(dir, ARIA2_ZIP, 'aria2c.exe');
     requirePin('aria2c.exe', PINS.aria2Exe, await sha256File(exe));

@@ -16,28 +16,36 @@ import yt_dlp
 MAX_URL = 2000
 
 
+def addr_is_public(addr: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(addr.split('%')[0])
+    except ValueError:
+        return False
+    return (getattr(ip, 'ipv4_mapped', None) or ip).is_global
+
+
 def host_is_public(host: str) -> bool:
     try:
         infos = socket.getaddrinfo(host, None)
-    except OSError:
+        return bool(infos) and all(addr_is_public(i[4][0]) for i in infos)
+    except (OSError, ValueError):
         return False
-    for info in infos:
-        ip = ipaddress.ip_address(info[4][0])
-        if ip.is_private or ip.is_loopback or ip.is_link_local or ip.is_multicast or ip.is_reserved or ip.is_unspecified:
-            return False
-    return bool(infos)
 
 
 def check_url(raw: str):
     """Return (url, None) or (None, message)."""
     if not raw or len(raw) > MAX_URL:
         return None, 'Paste a link.'
-    u = urlparse(raw.strip())
-    if u.scheme not in ('http', 'https') or not u.hostname:
+    try:
+        u = urlparse(raw.strip())
+        host, port = u.hostname, u.port
+    except ValueError:
         return None, 'Only http and https links work.'
-    if u.port not in (None, 80, 443):
+    if u.scheme not in ('http', 'https') or not host:
+        return None, 'Only http and https links work.'
+    if port not in (None, 80, 443):
         return None, 'That port is not allowed.'
-    if not host_is_public(u.hostname):
+    if not host_is_public(host):
         return None, 'That address is not allowed.'
     return u.geturl(), None
 

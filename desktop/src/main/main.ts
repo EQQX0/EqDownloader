@@ -2,8 +2,9 @@ import { app, BrowserWindow, dialog, ipcMain, session, shell } from 'electron';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { pathToFileURL } from 'node:url';
 import type { DownloadItem, EngineError, Preset } from '@eq/ui/engine';
-import { checkDestination, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope } from './ipc';
+import { checkDestination, isTrustedSender, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope } from './ipc';
 import { resolveBinaries } from './paths';
 import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from './security';
 import { checkAppUpdate, installAppUpdate } from './appupdate';
@@ -61,7 +62,12 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   const defaultDir = path.join(app.getPath('downloads'), 'EqDownload');
   let allowed: string[] = mergeFolders([defaultDir, app.getPath('downloads')], parseAllowedFolders(saved, isDir));
   const handle = (channel: string, fn: (...args: unknown[]) => unknown): void => {
-    ipcMain.handle(channel, (_e, ...args) => toEnvelope(() => fn(...args) as Promise<unknown>));
+    ipcMain.handle(channel, (e, ...args) =>
+      toEnvelope(() => {
+        if (!isTrustedSender(e.senderFrame?.url, pathToFileURL(uiEntry()).href)) throw new Error('Request refused: not from the app window');
+        return fn(...args) as Promise<unknown>;
+      }),
+    );
   };
 
   handle('eq:probe', (url) => engine.probe(str(url, 'url')));

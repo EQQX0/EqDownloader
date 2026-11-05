@@ -1,5 +1,6 @@
 import fs from 'node:fs/promises';
 import path from 'node:path';
+import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import type { EngineError } from '@eq/ui/engine';
 import { createGetter, MAX_JSON_BYTES, MAX_SUMS_BYTES, parseChecksums, verifyChecksum } from './update';
@@ -96,14 +97,40 @@ export async function installAppUpdate(opts: InstallOptions): Promise<string> {
   verifyChecksum(data, EXE_ASSET, table);
 
   const staged = path.join(path.dirname(opts.target), `.EqDownload.${tag}.new`);
-  const script = path.join(opts.tmpDir, `eq-update-${process.pid}.cmd`);
-  if (![staged, opts.target, script].every(cmdSafe)) throw fail('Move EqDownload.exe to a folder without special characters (such as % or &) to update it.');
+  const sha = createHash('sha256').update(data).digest('hex');
+  // A fresh, unpredictable folder so nobody can pre-create or swap the script path in %TEMP%.
+  let scriptDir = '';
+  try {
+    scriptDir = await fs.mkdtemp(path.join(opts.tmpDir, 'eq-update-'));
+  } catch (e) {
+    throw fail(`Could not prepare the update: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  const script = path.join(scriptDir, `eq-update-${process.pid}.cmd`);
+  const cleanup = async (): Promise<void> => {
+    await fs.rm(staged, { force: true });
+    await fs.rm(scriptDir, { recursive: true, force: true });
+  };
+  if (![staged, opts.target, script].every(cmdSafe)) {
+    await cleanup();
+    throw fail('Move EqDownload.exe to a folder without special characters (such as % or &) to update it.');
+  }
   try {
     await fs.writeFile(staged, data);
     await fs.writeFile(script, swapScript(staged, opts.target));
   } catch (e) {
-    await fs.rm(staged, { force: true });
+    await cleanup();
     throw fail(`Could not save the update next to EqDownload.exe: ${e instanceof Error ? e.message : String(e)}`);
+  }
+  // Re-hash what is on disk right before launch: the staged file sits in a user-writable folder.
+  let onDisk = '';
+  try {
+    onDisk = createHash('sha256').update(await fs.readFile(staged)).digest('hex');
+  } catch {
+    /* treated as a mismatch */
+  }
+  if (onDisk !== sha) {
+    await cleanup();
+    throw fail('The downloaded update changed on disk before it could be installed; not installing.');
   }
   (opts.launch ?? ((s) => spawn('cmd.exe', ['/c', s], { detached: true, stdio: 'ignore', windowsHide: true }).unref()))(script);
   return tag.replace(/^v/, '');

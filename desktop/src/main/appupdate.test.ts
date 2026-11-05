@@ -64,9 +64,30 @@ describe('installAppUpdate', () => {
     const v = await installAppUpdate({ current: '0.1.5', target: target(), tmpDir: dir, fetch: fakeFetch(), launch });
     expect(v).toBe('0.1.6');
     expect(launch).toHaveBeenCalledTimes(1);
-    const script = fs.readFileSync(launch.mock.calls[0]![0] as string, 'utf8');
+    const scriptPath = launch.mock.calls[0]![0] as string;
+    expect(path.dirname(scriptPath)).not.toBe(dir);
+    expect(path.dirname(scriptPath).startsWith(path.join(dir, 'eq-update-'))).toBe(true);
+    const script = fs.readFileSync(scriptPath, 'utf8');
     expect(script).toContain(`move /y "${path.join(dir, '.EqDownload.v0.1.6.new')}" "${target()}"`);
     expect(fs.readFileSync(path.join(dir, '.EqDownload.v0.1.6.new'))).toEqual(EXE);
+  });
+
+  it('refuses and cleans up when the staged file changes before launch', async () => {
+    const launch = vi.fn();
+    const realWrite = fs.promises.writeFile;
+    const spy = vi.spyOn(fs.promises, 'writeFile').mockImplementation(async (f, d, o) => {
+      await realWrite(f, d, o);
+      if (String(f).endsWith('.new')) await realWrite(f, Buffer.from('tampered'));
+    });
+    try {
+      await expect(installAppUpdate({ current: '0.1.5', target: target(), tmpDir: dir, fetch: fakeFetch(), launch })).rejects.toMatchObject({
+        message: expect.stringContaining('changed'),
+      });
+    } finally {
+      spy.mockRestore();
+    }
+    expect(launch).not.toHaveBeenCalled();
+    expect(fs.existsSync(path.join(dir, '.EqDownload.v0.1.6.new'))).toBe(false);
   });
 
   it('refuses a checksum mismatch and stages nothing', async () => {

@@ -1,6 +1,7 @@
 package app.eqdownload
 
 import java.io.File
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -25,6 +26,29 @@ class DebugLogTest {
         assertTrue(text.length <= 400)
         assertTrue(text.contains("entry-49"))
         assertFalse(text.contains("entry-0\n"))
+    }
+
+    @Test
+    fun redactsQueryAndFragmentFromUrls() {
+        assertEquals("see https://host/path?… now", DebugLog.redactUrls("see https://host/path?x=y#z now"))
+        assertEquals("https://host/path?…", DebugLog.redactUrls("https://host/path#frag"))
+        assertEquals("https://host/path", DebugLog.redactUrls("https://host/path"))
+        assertEquals("no url here", DebugLog.redactUrls("no url here"))
+        val line = "[youtube] Downloading webpage https://a.test/v?sig=SECRET&t=1 then http://b.test/x?token=ABC#t=5 done"
+        val out = DebugLog.redactUrls(line)
+        assertFalse(out.contains("SECRET") || out.contains("ABC") || out.contains("t=5"))
+        assertTrue(out.contains("https://a.test/v?…") && out.contains("http://b.test/x?…"))
+    }
+
+    @Test
+    fun addRedactsUrlsInCommandLinesAndLongOutput() {
+        DebugLog.init(tmp())
+        DebugLog.add("start", "id1 aria2c https://v.test/a?X-Sig=SECRET yt-dlp -o out --add-header Referer:https://r.test/p?k=SECRET2")
+        DebugLog.add("yt-dlp", "x".repeat(300) + " https://cdn.test/seg?token=SECRET3&e=1 " + "y".repeat(100))
+        val text = DebugLog.read()
+        assertFalse(text.contains("SECRET"))
+        assertTrue(text.contains("https://v.test/a?…"))
+        assertTrue(text.contains("https://cdn.test/seg?…"))
     }
 
     @Test

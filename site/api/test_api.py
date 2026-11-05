@@ -79,5 +79,122 @@ class Ranges(unittest.TestCase):
             dl.resolve, dl.public_http_url = orig, orig_pub
 
 
+def fake_addrinfo(*addrs):
+    return lambda host, port, *a, **k: [(2, 1, 6, '', (x, 0)) for x in addrs]
+
+
+class HostAllowlist(unittest.TestCase):
+    def check(self, mod, addrs, expect):
+        import socket
+        orig = socket.getaddrinfo
+        socket.getaddrinfo = fake_addrinfo(*addrs)
+        try:
+            self.assertEqual(mod.host_is_public('h.example'), expect, addrs)
+        finally:
+            socket.getaddrinfo = orig
+
+    def test_allowlist_in_both_modules(self):
+        for mod in (dl, probe):
+            self.check(mod, ['93.184.216.34'], True)
+            self.check(mod, ['100.64.0.1'], False)  # CGNAT
+            self.check(mod, ['::ffff:127.0.0.1'], False)  # mapped loopback
+            self.check(mod, ['::ffff:100.64.0.1'], False)
+            self.check(mod, ['93.184.216.34', '10.0.0.1'], False)
+
+    def test_odd_hostnames_fail_closed(self):
+        import socket
+        orig = socket.getaddrinfo
+        try:
+            for exc in (UnicodeError('label empty'), ValueError('bad')):
+                def boom(*a, **k):
+                    raise exc
+                socket.getaddrinfo = boom
+                self.assertFalse(dl.host_is_public('x'))
+                self.assertFalse(probe.host_is_public('x'))
+                self.assertIsNotNone(probe.check_url('http://x.example/')[1])
+        finally:
+            socket.getaddrinfo = orig
+
+    def test_check_url_bad_port_does_not_raise(self):
+        self.assertIsNotNone(probe.check_url('http://example.com:99999999/')[1])
+        self.assertIsNotNone(probe.check_url('http://[bad/')[1])
+
+
+class Hardening(unittest.TestCase):
+    def run_app(self, query):
+        import asyncio
+        sent = []
+
+        async def send(m):
+            sent.append(m)
+
+        asyncio.run(dl.app({'type': 'http', 'query_string': query.encode()}, None, send))
+        return sent
+
+    def test_bad_range_never_calls_resolve(self):
+        orig, orig_pub = dl.resolve, dl.public_http_url
+        calls = []
+        dl.resolve = lambda *a: calls.append(a) or ('https://example.com/v.mp4', {}, 't', 'mp4')
+        dl.public_http_url = lambda u: True
+        try:
+            sent = self.run_app('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=9-1')
+            self.assertEqual(sent[0]['status'], 400)
+            self.assertEqual(calls, [])
+        finally:
+            dl.resolve, dl.public_http_url = orig, orig_pub
+
+    def test_missing_peer_info_refuses(self):
+        class Resp:
+            fp = object()  # no .raw._sock
+
+            def close(self):
+                pass
+
+        orig = dl.OPENER
+        class Op:
+            def open(self, *a, **k):
+                return Resp()
+        dl.OPENER = Op()
+        try:
+            with self.assertRaises(PermissionError):
+                dl.open_media('https://example.com/v', {})
+        finally:
+            dl.OPENER = orig
+
+    def served_type(self, upstream):
+        class Resp:
+            status = 200
+
+            def __init__(self):
+                self.headers = {'Content-Type': upstream, 'Content-Length': '3'}
+                self.done = False
+
+            def read(self, n):
+                if self.done:
+                    return b''
+                self.done = True
+                return b'abc'
+
+            def close(self):
+                pass
+
+        orig = (dl.resolve, dl.public_http_url, dl.open_media)
+        dl.resolve = lambda *a: ('https://example.com/v', {}, 't', 'mp4')
+        dl.public_http_url = lambda u: True
+        dl.open_media = lambda m, h: Resp()
+        try:
+            sent = self.run_app('url=https%3A%2F%2Fexample.com%2Fp&f=1')
+        finally:
+            dl.resolve, dl.public_http_url, dl.open_media = orig
+        return dict(sent[0]['headers'])[b'content-type'].decode()
+
+    def test_content_type_allowlist(self):
+        self.assertEqual(self.served_type('text/html; charset=utf-8'), 'application/octet-stream')
+        self.assertEqual(self.served_type('image/svg+xml'), 'application/octet-stream')
+        self.assertEqual(self.served_type('video/mp4'), 'video/mp4')
+        self.assertEqual(self.served_type('audio/mp4'), 'audio/mp4')
+        self.assertEqual(self.served_type('application/octet-stream'), 'application/octet-stream')
+
+
 if __name__ == '__main__':
     unittest.main()

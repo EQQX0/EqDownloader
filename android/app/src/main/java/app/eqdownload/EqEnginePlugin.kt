@@ -198,9 +198,15 @@ class EqEnginePlugin : Plugin() {
      */
     @PluginMethod
     fun installAppUpdate(call: PluginCall) {
+        if (!updating.compareAndSet(false, true)) {
+            reject(call, EngineException("busy", "An update is already downloading."))
+            return
+        }
         pool.execute {
             try {
                 val latest = AppUpdate.fetchLatest()
+                val current = context.packageManager.getPackageInfo(context.packageName, 0).versionName ?: "0.0.0"
+                AppUpdate.requireNewer(latest.version, current)
                 if (!context.packageManager.canRequestPackageInstalls()) {
                     val settings = Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES, Uri.parse("package:${context.packageName}"))
                         .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -216,9 +222,13 @@ class EqEnginePlugin : Plugin() {
                 call.resolve(JSObject().put("version", latest.version))
             } catch (e: Throwable) {
                 reject(call, e)
+            } finally {
+                updating.set(false)
             }
         }
     }
+
+    private val updating = java.util.concurrent.atomic.AtomicBoolean(false)
 
     /** Opens the support page in the browser. The address is fixed here; JavaScript cannot change it. */
     @PluginMethod

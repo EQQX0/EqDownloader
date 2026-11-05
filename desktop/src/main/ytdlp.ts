@@ -25,6 +25,8 @@ export const ISOLATION_ARGS = ['--ignore-config', '--no-plugin-dirs'] as const;
 const STDERR_CAP = 64 * 1024;
 const STALE_AFTER_MS = 10 * 60 * 1000;
 const STAGING_PREFIX = '.eqdl-';
+/** Written into every staging folder the app creates; the sweep deletes only folders that carry it. */
+const OWNER_MARKER = '.eqdl-owner';
 
 export interface YtDlpEngineOptions {
   ytdlpPath: string;
@@ -216,6 +218,7 @@ export class YtDlpEngine implements Engine {
     try {
       await this.sweepStale(destination);
       await fs.mkdir(staging, { recursive: true });
+      await fs.writeFile(path.join(staging, OWNER_MARKER), '');
       const args = [
         ...(this.opts.ytdlpArgsPrefix ?? []),
         '--ffmpeg-location',
@@ -368,6 +371,7 @@ export class YtDlpEngine implements Engine {
           if (active.has(path.resolve(full))) return;
           try {
             if ((await fs.stat(full)).mtimeMs >= cutoff) return;
+            if (!(await fs.stat(path.join(full, OWNER_MARKER)).then((st) => st.isFile(), () => false))) return;
             await rmStaging(full);
           } catch {
             /* best effort */

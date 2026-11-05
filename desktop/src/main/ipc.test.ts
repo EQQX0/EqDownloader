@@ -1,7 +1,7 @@
 import path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import type { EngineErrorCode } from '@eq/ui/engine';
-import { checkDestination, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope, unwrapEnvelope } from './ipc';
+import { checkDestination, isTrustedSender, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope, unwrapEnvelope } from './ipc';
 
 const codes: EngineErrorCode[] = ['unsupported', 'blocked', 'network', 'outdated', 'disk', 'unknown'];
 
@@ -107,5 +107,34 @@ describe('persisted allowed folders', () => {
     if (process.platform === 'win32') {
       expect(mergeFolders(['C:\\Media\\A'], ['c:\\media\\a\\'])).toEqual(['C:\\Media\\A']);
     }
+  });
+});
+
+describe('isTrustedSender', () => {
+  const app = 'file:///C:/app/ui/index.html';
+  it('accepts the app page, with or without a hash', () => {
+    expect(isTrustedSender(app, app)).toBe(true);
+    expect(isTrustedSender(`${app}#/settings`, app)).toBe(true);
+  });
+  it('rejects other pages, missing urls and look-alikes', () => {
+    expect(isTrustedSender(undefined, app)).toBe(false);
+    expect(isTrustedSender('', app)).toBe(false);
+    expect(isTrustedSender('https://evil.example/', app)).toBe(false);
+    expect(isTrustedSender('file:///C:/other/index.html', app)).toBe(false);
+    expect(isTrustedSender(`${app}.evil.html`, app)).toBe(false);
+  });
+  it('accepts the dev server origin only when given', () => {
+    expect(isTrustedSender('http://localhost:5173/x', app, 'http://localhost:5173')).toBe(true);
+    expect(isTrustedSender('http://localhost:5173/x', app)).toBe(false);
+    expect(isTrustedSender('http://localhost:51730/x', app, 'http://localhost:5173')).toBe(false);
+  });
+});
+
+describe('isTrustedSender encoding tolerance', () => {
+  it('matches the same file despite escaped spaces and drive-letter case', () => {
+    const app = 'file:///C:/Users/Some%20One/AppData/Local/Temp/x/resources/ui/index.html';
+    expect(isTrustedSender('file:///c:/Users/Some One/AppData/Local/Temp/x/resources/ui/index.html#a', app)).toBe(true);
+    expect(isTrustedSender('file:///C:/Users/Other/index.html', app)).toBe(false);
+    expect(isTrustedSender('https://evil.test/Users/Some%20One/AppData/Local/Temp/x/resources/ui/index.html', app)).toBe(false);
   });
 });
