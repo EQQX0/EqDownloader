@@ -76,6 +76,8 @@ jobs:
     name: Android apk
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Only v* tags may use this environment. Move the four signing secrets into it to lock them to releases.
+    environment: release
     env:
       BUILD_TOOLS: 36.0.0
     steps:
