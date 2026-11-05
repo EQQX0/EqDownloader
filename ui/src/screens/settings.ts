@@ -25,7 +25,7 @@ export const createSettings: ScreenFactory = (store) => {
   const appRow = h('p', { class: 'setting' }, h('label', { for: 'app-version', class: 'run-in' }, 'App version: '), appVer, ' ', appBtn, ' ', appNote);
   appRow.hidden = !store.canUpdateApp;
 
-  const support = h('button', { type: 'button', testid: 'support', class: 'button setting-action coffee' }, 'Buy me a coffee');
+  const support = h('button', { type: 'button', testid: 'support', class: 'button setting-action tip' }, 'Buy me a coffee');
   support.addEventListener('click', () => void store.openSupport());
   const supportRow = h('p', { class: 'setting' }, 'Free, no ads. If it helps you: ', support);
   supportRow.hidden = !store.canOpenSupport;

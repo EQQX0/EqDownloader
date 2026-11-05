@@ -71,7 +71,7 @@ The Downloads screen shows only what is downloading now and the last download. A
 
 ## Support
 
-EqDownload is free and has no ads. If it saves you time, you can [buy me a coffee](https://buymeacoffee.com/EQQX2). The link is in the website's menu and footer and in Settings in both apps.
+EqDownload is free and has no ads. If it saves you time, you can [buy me a coffee](https://ko-fi.com/eqqx2). The link is in the website's menu and footer and in Settings in both apps.
 
 ## Build from source
 

@@ -234,7 +234,7 @@ class EqEnginePlugin : Plugin() {
     @PluginMethod
     fun openSupport(call: PluginCall) {
         try {
-            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://buymeacoffee.com/EQQX2")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/eqqx2")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
             call.resolve()
         } catch (e: Throwable) {
             reject(call, e)
