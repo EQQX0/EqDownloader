@@ -2,7 +2,7 @@
 
 EqDownload is a fast downloader for video and audio from links you paste or share to it. It runs on Windows and Android with the same interface. It has no ads, no accounts, no analytics and no server of its own in the apps. The engine is yt-dlp. The website is a separate small service, described below.
 
-Website: https://eqdownload.vercel.app (paste a link and save from the browser, or get the apps).
+Website: https://download.eqqx2.com (paste a link and save from the browser, or get the apps).
 
 You are responsible for having the right to download what you download.
 
@@ -16,7 +16,7 @@ Both files are on the [Releases page](https://github.com/EQQX0/EqDownloader/rele
 
 Check the downloads against `SHA256SUMS.txt` on the release.
 
-**In a browser.** https://eqdownload.vercel.app takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For sites whose file links need cookies a browser cannot send (TikTok), the file itself is streamed through that server (up to 80 MB).
+**In a browser.** https://download.eqqx2.com takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For sites whose file links need cookies a browser cannot send (TikTok), the file itself is streamed through that server (up to 80 MB).
 
 ## Use
 
@@ -40,7 +40,7 @@ How fast you actually get depends on your internet and on the site. A site that 
 
 ## iPhone Shortcut
 
-The website accepts a link in its address: `https://eqdownload.vercel.app/?url=<link>`. The link must be last in the address. With the Shortcuts app you can add EqDownload to the Share sheet: make a shortcut that takes URLs and Text from the Share Sheet, with the action Text (`https://eqdownload.vercel.app/?url=` followed by Shortcut Input) and the action Open URLs. Sharing a link to it then opens the page with the link already checked. It uses the website, so the same site limits apply.
+The website accepts a link in its address: `https://download.eqqx2.com/?url=<link>`. The link must be last in the address. With the Shortcuts app you can add EqDownload to the Share sheet: make a shortcut that takes URLs and Text from the Share Sheet, with the action Text (`https://eqdownload.vercel.app/?url=` followed by Shortcut Input) and the action Open URLs. Sharing a link to it then opens the page with the link already checked. It uses the website, so the same site limits apply.
 
 ## Updating the app
 
