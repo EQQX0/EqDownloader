@@ -19,6 +19,14 @@
   // The finder: ask /api/probe for the file list, then show plain links the browser downloads itself.
   const form = document.getElementById('finder');
   const out = document.getElementById('result');
+  // YouTube blocks Vercel's servers, so YouTube links go to the home server instead. Everything else stays on this site.
+  const PHONE = 'https://downloader.eqqx2.com';
+  const isYouTube = (text) => {
+    try {
+      const h = new URL(/^https?:\/\//i.test(text) ? text : 'https://' + text).hostname.toLowerCase().replace(/^www\./, '');
+      return h === 'youtu.be' || h === 'youtube.com' || h.endsWith('.youtube.com') || h === 'youtube-nocookie.com';
+    } catch { return false; }
+  };
   const safe = (u) => typeof u === 'string' && /^(https?:\/\/|\/api\/dl\?)/.test(u);
   const say = (text) => { out.textContent = ''; const p = document.createElement('p'); p.textContent = text; out.append(p); };
   // Chrome and Edge on a PC: pick a folder once (create Downloads\EqDownload), then every save goes there without asking.
@@ -174,8 +182,11 @@
     out.append(lp, bar);
     const go = form.querySelector('button[type=submit]');
     go.disabled = true;
+    const viaPhone = location.origin !== PHONE && isYouTube(link);
     try {
-      const res = await fetch('/api/probe?url=' + encodeURIComponent(link));
+      let res;
+      try { res = await fetch((viaPhone ? PHONE : '') + '/api/probe?url=' + encodeURIComponent(link)); }
+      catch { if (viaPhone) { say('The YouTube server is not answering right now. Use the Windows or Android app.'); return; } throw new Error('offline'); }
       let data;
       try { data = await res.json(); } catch { say(res.ok ? 'Could not read that link.' : 'The server took too long or failed. Try again.'); return; }
       if (!res.ok) {
@@ -187,6 +198,7 @@
         return;
       }
       out.textContent = '';
+      if (viaPhone) for (const f of data.formats) { if (f.url && f.url.startsWith('/')) f.url = PHONE + f.url; f.dl = undefined; }
       if (safe(data.thumbnail)) {
         const img = document.createElement('img');
         img.src = data.thumbnail; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.loading = 'lazy';
