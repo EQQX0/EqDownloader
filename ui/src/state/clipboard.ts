@@ -27,8 +27,10 @@ export function wantedClipboardLink(text: string): string | null {
 }
 
 interface Target {
-  submitLink(text: string): Promise<void>;
+  submitLink(text: string, opts?: { fromPaste?: boolean }): Promise<void>;
   go(screen: Screen): void;
+  /** Paste settings; a target without them behaves as before (auto paste on, finds the link). */
+  state?: { settings: { autoPaste: boolean; pasteFinds: boolean } };
 }
 
 /**
@@ -38,11 +40,14 @@ interface Target {
 export function wireClipboard(engine: ClipboardCapable, store: Target, doc: DocLike = document): () => void {
   let last: string | null = null;
   const offer = (text: string): void => {
+    // Auto paste off, or "paste finds" off (nothing would check the link): leave the clipboard alone.
+    const s = store.state?.settings;
+    if (s && (!s.autoPaste || !s.pasteFinds)) return;
     const url = wantedClipboardLink(text);
     if (!url || url === last) return;
     last = url;
     store.go('home');
-    void store.submitLink(url);
+    void store.submitLink(url, { fromPaste: true });
   };
   if (typeof engine.onClipboard === 'function') return engine.onClipboard(offer);
   if (typeof engine.readClipboard !== 'function') return () => {};

@@ -549,3 +549,51 @@ describe('late title and picture', () => {
     expect(store.state.probe).toBeNull(); // the late answer does not bring the result card back
   });
 });
+
+describe('paste behavior settings', () => {
+  it('defaults: auto paste on, paste finds on, auto download off', async () => {
+    const { store } = await setup();
+    expect(store.state.settings).toMatchObject({ autoPaste: true, pasteFinds: true, pasteAutoDownload: false });
+  });
+
+  it('saves each option and reads it back in a new store', async () => {
+    const storage = memStorage();
+    const engine = new TestEngine();
+    const store = createStore(engine, { storage });
+    store.setPasteOption('autoPaste', false);
+    store.setPasteOption('pasteFinds', false);
+    store.setPasteOption('pasteAutoDownload', true);
+    const again = createStore(engine, { storage });
+    expect(again.state.settings).toMatchObject({ autoPaste: false, pasteFinds: false, pasteAutoDownload: true });
+  });
+
+  it('reports canReadClipboard only for engines that can read it', async () => {
+    const { store } = await setup();
+    expect(store.canReadClipboard).toBe(false);
+    const withClip = Object.assign(new TestEngine(), { readClipboard: async () => '' });
+    expect(createStore(withClip, { storage: null }).canReadClipboard).toBe(true);
+  });
+
+  it('downloads at the default quality after a pasted link checks out when auto download is on', async () => {
+    const { engine, store } = await setup();
+    store.setPasteOption('pasteAutoDownload', true);
+    store.setPreset('720p');
+    await store.submitLink('https://youtu.be/abc', { fromPaste: true });
+    await store.ready;
+    await new Promise((r) => setTimeout(r, 0));
+    expect(engine.startCalls).toHaveLength(1);
+    expect(engine.startCalls[0]).toMatchObject({ url: 'https://youtu.be/abc', preset: '720p' });
+    expect(store.state.screen).toBe('downloads');
+  });
+
+  it('does not auto download a typed link, when the option is off, or when paste finds is off', async () => {
+    const { engine, store } = await setup();
+    await store.submitLink('https://youtu.be/a', { fromPaste: true }); // option off
+    store.setPasteOption('pasteAutoDownload', true);
+    await store.submitLink('https://youtu.be/b'); // not from paste
+    store.setPasteOption('pasteFinds', false);
+    await store.submitLink('https://youtu.be/c', { fromPaste: true }); // finds off
+    await new Promise((r) => setTimeout(r, 0));
+    expect(engine.startCalls).toHaveLength(0);
+  });
+});

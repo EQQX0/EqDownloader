@@ -23,7 +23,7 @@ describe('wireClipboard', () => {
     const store = { submitLink: vi.fn(async () => {}), go: vi.fn() };
     wireClipboard(engineWith(['https://youtu.be/abc?si=1']), store, fakeDoc().doc);
     await flush();
-    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc?si=1');
+    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc?si=1', { fromPaste: true });
     expect(store.go).toHaveBeenCalledWith('home');
   });
 
@@ -57,6 +57,31 @@ describe('wireClipboard', () => {
   });
 });
 
+describe('wireClipboard paste settings', () => {
+  const withSettings = (autoPaste: boolean, pasteFinds: boolean) => ({
+    submitLink: vi.fn(async () => {}), go: vi.fn(), state: { settings: { autoPaste, pasteFinds } },
+  });
+  it('does nothing when auto paste is off', async () => {
+    const store = withSettings(false, true);
+    wireClipboard(engineWith(['https://youtu.be/abc']), store, fakeDoc().doc);
+    await flush();
+    expect(store.submitLink).not.toHaveBeenCalled();
+    expect(store.go).not.toHaveBeenCalled();
+  });
+  it('does nothing when paste finds is off, since nothing would check the link', async () => {
+    const store = withSettings(true, false);
+    wireClipboard(engineWith(['https://youtu.be/abc']), store, fakeDoc().doc);
+    await flush();
+    expect(store.submitLink).not.toHaveBeenCalled();
+  });
+  it('checks the link when both are on', async () => {
+    const store = withSettings(true, true);
+    wireClipboard(engineWith(['https://youtu.be/abc']), store, fakeDoc().doc);
+    await flush();
+    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc', { fromPaste: true });
+  });
+});
+
 describe('wireClipboard with a native clipboard event', () => {
   function pushEngine() {
     let handler: ((t: string) => void) | null = null;
@@ -75,7 +100,7 @@ describe('wireClipboard with a native clipboard event', () => {
     wireClipboard(engine, store, fakeDoc().doc);
     fire('https://youtu.be/abc?si=1');
     await flush();
-    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc?si=1');
+    expect(store.submitLink).toHaveBeenCalledWith('https://youtu.be/abc?si=1', { fromPaste: true });
     expect(store.go).toHaveBeenCalledWith('home');
   });
 

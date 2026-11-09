@@ -11,7 +11,15 @@ export interface Settings {
   preset: Preset;
   engineVersion: string | null;
   appVersion: string | null;
+  /** Pick up a link from the clipboard when the app comes to the front. */
+  autoPaste: boolean;
+  /** Paste checks the link straight away; off, it only fills the field. */
+  pasteFinds: boolean;
+  /** A pasted link that checks out is downloaded at the default quality with no tap. */
+  pasteAutoDownload: boolean;
 }
+
+export type PasteOption = 'autoPaste' | 'pasteFinds' | 'pasteAutoDownload';
 
 /** Progress of the app's own update; only used when the shell can update itself. */
 export type AppUpdateState = 'idle' | 'checking' | 'current' | 'available' | 'installing' | 'installed';
@@ -48,13 +56,17 @@ export interface Store {
   readonly canReveal: boolean;
   readonly canUpdateApp: boolean;
   readonly canOpenSupport: boolean;
+  /** True when the shell can read the clipboard itself (Android), so the paste settings apply. */
+  readonly canReadClipboard: boolean;
   openSupport(): Promise<void>;
+  setPasteOption(key: PasteOption, value: boolean): void;
   /** The clipboard text, read by the shell when it can (Android) or by the browser; empty when it cannot be read. */
   readClipboard(): Promise<string>;
   /** Everything traceable about failures: the app's own notes plus the shell's log when there is one. */
   debugLog(): Promise<string>;
   clearDebugLog(): Promise<void>;
-  submitLink(text: string): Promise<void>;
+  /** `fromPaste` marks a link that came from the clipboard or Paste button, so "paste auto-downloads" may apply. */
+  submitLink(text: string, opts?: { fromPaste?: boolean }): Promise<void>;
   startDownload(preset: Preset): Promise<void>;
   cancel(id: string): Promise<void>;
   retry(id: string): Promise<void>;
@@ -71,6 +83,11 @@ export interface Store {
 const KEY_DEST = 'eq.destination';
 const KEY_PRESET = 'eq.preset';
 const KEY_DEBUG = 'eq.debug';
+const PASTE_KEYS: Record<PasteOption, string> = {
+  autoPaste: 'eq.autoPaste',
+  pasteFinds: 'eq.pasteFinds',
+  pasteAutoDownload: 'eq.pasteAutoDownload',
+};
 const DEBUG_MAX = 40_000;
 const KEY_LIBRARY = 'eq.library';
 const LIBRARY_MAX = 200;
@@ -142,6 +159,9 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       preset: PRESET_LIST.includes(savedPreset as Preset) ? (savedPreset as Preset) : 'best',
       engineVersion: null,
       appVersion: null,
+      autoPaste: read(PASTE_KEYS.autoPaste) !== 'false',
+      pasteFinds: read(PASTE_KEYS.pasteFinds) !== 'false',
+      pasteAutoDownload: read(PASTE_KEYS.pasteAutoDownload) === 'true',
     },
     appUpdate: { status: 'idle', version: null },
   };
@@ -320,6 +340,20 @@ export function createStore(engine: Engine, host: Host = {}): Store {
 
   let starting = false;
 
+  async function startDownload(preset: Preset): Promise<void> {
+    const probe = state.probe;
+    if (!probe || starting) return;
+    starting = true;
+    probeSeq++; // a late answer for this link must not bring the result back after the download starts
+    try {
+      set({ error: null });
+      await begin(probe.url, preset, probe.title, probe.thumbnail ?? null);
+      if (!state.error) set({ probe: null, screen: 'downloads' });
+    } finally {
+      starting = false;
+    }
+  }
+
   return {
     state,
     ready,
@@ -327,6 +361,14 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     canReveal: typeof host.revealFile === 'function',
     canUpdateApp: !!host.appUpdater,
     canOpenSupport: typeof host.openSupport === 'function',
+    canReadClipboard: (() => {
+      const e = engine as Engine & { readClipboard?: unknown; onClipboard?: unknown };
+      return typeof e.readClipboard === 'function' || typeof e.onClipboard === 'function';
+    })(),
+    setPasteOption(key, value) {
+      write(PASTE_KEYS[key], String(value));
+      set({ settings: { ...state.settings, [key]: value } });
+    },
     async readClipboard() {
       try {
         const rc = (engine as Engine & { readClipboard?(): Promise<string> }).readClipboard;
@@ -364,7 +406,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       }
     },
 
-    async submitLink(text) {
+    async submitLink(text, opts) {
       const url = extractUrl(text);
       if (!url) {
         probeSeq++; // a slower earlier probe must not overwrite this result
@@ -372,6 +414,11 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         return;
       }
       const seq = ++probeSeq;
+      // Paste auto-download: once the link checks out, start it at the default quality. Needs "paste finds" on.
+      const autoStart = (s: number): void => {
+        const { pasteFinds, pasteAutoDownload, preset } = state.settings;
+        if (opts?.fromPaste && pasteFinds && pasteAutoDownload && s === probeSeq) void startDownload(preset);
+      };
       // Show the quality buttons at once with the link as the title; the real title and picture fill in when yt-dlp answers.
       set({ error: null, probe: { url, title: url, thumbnail: null, durationSec: null, formats: [] }, probing: true });
       try {
@@ -385,6 +432,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
               applyMeta(url, q.title, q.thumbnail ?? null);
               if (seq === probeSeq) {
                 set({ probe: { url, title: q.title, thumbnail: q.thumbnail ?? null, durationSec: null, formats: [] }, probing: false });
+                autoStart(seq);
               }
               return;
             }
@@ -400,7 +448,10 @@ export function createStore(engine: Engine, host: Host = {}): Store {
           probe = await engine.probe(url);
         }
         applyMeta(url, probe.title, probe.thumbnail ?? null);
-        if (seq === probeSeq) set({ probe, probing: false });
+        if (seq === probeSeq) {
+          set({ probe, probing: false });
+          autoStart(seq);
+        }
       } catch (e) {
         if (seq === probeSeq) {
           set({ probe: null, probing: false, error: describeError(asEngineError(e), state.settings.destination) });
@@ -408,19 +459,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       }
     },
 
-    async startDownload(preset) {
-      const probe = state.probe;
-      if (!probe || starting) return;
-      starting = true;
-      probeSeq++; // a late answer for this link must not bring the result back after the download starts
-      try {
-        set({ error: null });
-        await begin(probe.url, preset, probe.title, probe.thumbnail ?? null);
-        if (!state.error) set({ probe: null, screen: 'downloads' });
-      } finally {
-        starting = false;
-      }
-    },
+    startDownload,
 
     async cancel(id) {
       try {

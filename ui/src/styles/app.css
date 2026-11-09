@@ -353,3 +353,32 @@ body::before {
 .button-install, .button-install:active { background: #FFB81C; color: #0B132B; font-weight: 700; box-shadow: 0 0 0 2px #FFD66B; }
 @media (hover: hover) and (pointer: fine) { .button-install:hover { background: #FFC94A; color: #0B132B; transform: translateY(-2px); } }
 .button-install:disabled { background: #FFB81C; color: #0B132B; opacity: 0.7; }
+
+/* ---------- paste behavior toggles ---------- */
+.setting-heading { font-size: var(--step-lead); font-weight: 500; margin-bottom: var(--space-2); }
+.setting-toggle { display: grid; gap: 0.25rem; margin-bottom: var(--space-3); }
+.toggle-label { display: flex; align-items: center; gap: var(--space-2); min-height: var(--target); cursor: pointer; font-weight: 500; }
+.check-box { width: 1.5rem; height: 1.5rem; flex: none; accent-color: var(--accent); cursor: pointer; }
+.check-box:disabled { opacity: 0.5; cursor: not-allowed; }
+.check-box:disabled + .toggle-text { opacity: 0.6; }
+
+/* ---------- animated download button: ring, arrow drops, ring fills, check ---------- */
+.start { gap: 0.75rem; }
+.dl-icon { width: 2rem; height: 2rem; flex: none; overflow: visible; }
+.dl-ring { fill: none; stroke: currentColor; stroke-width: 2.5; stroke-linecap: round; opacity: 0.9;
+  stroke-dasharray: 94.25; stroke-dashoffset: 0; }
+.dl-arrow, .dl-check { fill: none; stroke: currentColor; stroke-width: 2.8; stroke-linecap: round; stroke-linejoin: round; }
+.dl-check { opacity: 0; stroke-dasharray: 20; stroke-dashoffset: 20; }
+.start.is-downloading { pointer-events: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .start.is-downloading .dl-ring { animation: dl-fill 520ms var(--ease-in-out) both; }
+  .start.is-downloading .dl-arrow { animation: dl-drop 520ms var(--ease-in-out) both; }
+  .start.is-downloading .dl-check { animation: dl-check 220ms var(--ease-out) 480ms both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start.is-downloading .dl-arrow { opacity: 0; }
+  .start.is-downloading .dl-check { opacity: 1; stroke-dashoffset: 0; }
+}
+@keyframes dl-fill { from { stroke-dashoffset: 94.25; } to { stroke-dashoffset: 0; } }
+@keyframes dl-drop { 0% { transform: translateY(0); opacity: 1; } 55% { transform: translateY(5px); opacity: 1; } 100% { transform: translateY(12px); opacity: 0; } }
+@keyframes dl-check { from { opacity: 1; stroke-dashoffset: 20; } to { opacity: 1; stroke-dashoffset: 0; } }

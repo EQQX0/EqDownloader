@@ -1,7 +1,7 @@
 import type { Preset } from '../engine';
 import { h } from '../lib/dom';
 import { PRESET_LABELS } from '../lib/labels';
-import { PRESET_LIST } from '../state/store';
+import { PRESET_LIST, type PasteOption } from '../state/store';
 import type { ScreenFactory } from './types';
 
 export const createSettings: ScreenFactory = (store) => {
@@ -65,12 +65,31 @@ export const createSettings: ScreenFactory = (store) => {
   });
   const debugRow = h('div', { class: 'setting' }, 'Debug log: ', logShow, ' ', logCopy, ' ', logClear, ' ', logNote, logBox);
 
+  // Paste behavior: Android only, where the app can read the clipboard.
+  const toggle = (key: PasteOption, id: string, label: string, hint: string) => {
+    const box = h('input', { type: 'checkbox', id, testid: id, class: 'check-box', 'aria-describedby': `${id}-hint` });
+    box.addEventListener('change', () => store.setPasteOption(key, box.checked));
+    const row = h('div', { class: 'setting setting-toggle' },
+      h('label', { for: id, class: 'toggle-label' }, box, h('span', { class: 'toggle-text' }, label)),
+      h('span', { id: `${id}-hint`, class: 'setting-note' }, hint));
+    return { row, box, key };
+  };
+  const toggles = [
+    toggle('autoPaste', 'auto-paste', 'Auto paste', 'Pick up a copied link when you open the app.'),
+    toggle('pasteFinds', 'paste-finds', 'Paste finds the video', 'Paste checks the link right away. Off: it only fills the box.'),
+    toggle('pasteAutoDownload', 'paste-auto-download', 'Paste downloads automatically', 'Starts the download at your default quality. Needs "Paste finds the video".'),
+  ];
+  const pasteGroup = h('div', { role: 'group', 'aria-label': 'Paste behavior', class: 'setting-group' },
+    h('h2', { class: 'setting-heading' }, 'Paste behavior'), ...toggles.map((t) => t.row));
+  pasteGroup.hidden = !store.canReadClipboard;
+
   const el = h(
     'div', { class: 'screen screen-settings' },
     h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Settings')),
     h('div', { class: 'settings' },
       h('p', { class: 'setting' }, h('label', { for: 'destination', class: 'run-in' }, 'Destination folder: '), dest, ' ', choose),
       h('p', { class: 'setting' }, h('label', { for: 'default-preset', class: 'run-in' }, 'Default quality: '), select),
+      pasteGroup,
       h('p', { class: 'setting' }, h('label', { for: 'engine-version', class: 'run-in' }, 'Engine version: '), version, ' ', update),
       appRow,
       supportRow,
@@ -86,6 +105,8 @@ export const createSettings: ScreenFactory = (store) => {
     const s = store.state.settings;
     dest.textContent = s.destination;
     if (select.value !== s.preset) select.value = s.preset;
+    for (const t of toggles) t.box.checked = s[t.key];
+    toggles[2]!.box.disabled = !s.pasteFinds;
     version.textContent = s.engineVersion ?? 'Not checked yet';
     appVer.textContent = s.appVersion ?? 'Unknown';
     const u = store.state.appUpdate;
