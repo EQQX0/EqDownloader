@@ -12,6 +12,7 @@ class EngineException(val code: String, message: String) : Exception(message)
 object ErrorMapper {
     private val UNSUPPORTED = Regex("Unsupported URL", RegexOption.IGNORE_CASE)
     private val BLOCKED = Regex("""Sign in|Log in\b|Login required|--cookies|\bage\b|not available in your country""", RegexOption.IGNORE_CASE)
+    private val REFUSED = Regex("Unable to download webpage: HTTP Error (401|403)", RegexOption.IGNORE_CASE)
     private val NETWORK = Regex("Unable to download webpage", RegexOption.IGNORE_CASE)
     private val OUTDATED = Regex("HTTP Error 403|nsig", RegexOption.IGNORE_CASE)
     private val DISK = Regex("No space left|Permission denied", RegexOption.IGNORE_CASE)
@@ -20,6 +21,7 @@ object ErrorMapper {
     fun code(stderr: String): String = when {
         UNSUPPORTED.containsMatchIn(stderr) -> "unsupported"
         BLOCKED.containsMatchIn(stderr) -> "blocked"
+        REFUSED.containsMatchIn(stderr) -> "blocked"
         NETWORK.containsMatchIn(stderr) -> "network"
         OUTDATED.containsMatchIn(stderr) -> "outdated"
         DISK.containsMatchIn(stderr) -> "disk"

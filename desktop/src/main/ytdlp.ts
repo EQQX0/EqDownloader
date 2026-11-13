@@ -116,6 +116,8 @@ export function parseAria2Line(line: string): ProgressInfo | null {
 export function mapStderr(text: string): EngineErrorCode {
   if (/Unsupported URL/i.test(text)) return 'unsupported';
   if (/Sign in|Log in\b|Login required|--cookies|\bage\b|not available in your country/i.test(text)) return 'blocked';
+  // A 403 or 401 on the page itself means the site refused us, not that the network is down.
+  if (/Unable to download webpage: HTTP Error (401|403)/i.test(text)) return 'blocked';
   if (/Unable to download webpage/i.test(text)) return 'network';
   if (/HTTP Error 403|nsig/i.test(text)) return 'outdated';
   if (/No space left|Permission denied/i.test(text)) return 'disk';

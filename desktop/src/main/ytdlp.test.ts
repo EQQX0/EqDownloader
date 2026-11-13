@@ -121,6 +121,7 @@ describe('mapStderr', () => {
     ['ERROR: This video may be inappropriate for some users. Confirm your age', 'blocked'],
     ['This video is not available in your country', 'blocked'],
     ['ERROR: Unable to download webpage: boom', 'network'],
+    ['ERROR: [TikTok] 1: Unable to download webpage: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)', 'blocked'],
     ['ERROR: HTTP Error 403: Forbidden', 'outdated'],
     ['WARNING: nsig extraction failed', 'outdated'],
     ['OSError: [Errno 28] No space left on device', 'disk'],

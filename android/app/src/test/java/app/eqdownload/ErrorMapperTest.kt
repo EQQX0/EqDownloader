@@ -13,6 +13,7 @@ class ErrorMapperTest {
         "ERROR: This video may be inappropriate for some users. Confirm your age" to "blocked",
         "This video is not available in your country" to "blocked",
         "ERROR: Unable to download webpage: boom" to "network",
+        "ERROR: [TikTok] 1: Unable to download webpage: HTTP Error 403: Forbidden (caused by <HTTPError 403: Forbidden>)" to "blocked",
         "ERROR: HTTP Error 403: Forbidden" to "outdated",
         "WARNING: nsig extraction failed" to "outdated",
         "OSError: [Errno 28] No space left on device" to "disk",

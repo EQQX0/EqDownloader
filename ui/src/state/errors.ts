@@ -35,6 +35,9 @@ export function describeError(err: EngineError, destination: string): UiError {
           needsLogin: true,
         };
       }
+      if (/HTTP Error (401|403)/i.test(err.message)) {
+        return { code: err.code, message: 'The site refused this request (error 403). If you are signed in, the site may be blocking this app. Try again later.', offerUpdate: false };
+      }
       return { code: err.code, message: err.message || 'Something went wrong.', offerUpdate: false };
     case 'unknown':
     default:
