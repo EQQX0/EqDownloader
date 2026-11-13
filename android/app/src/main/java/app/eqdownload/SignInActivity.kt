@@ -69,7 +69,7 @@ class SignInActivity : Activity() {
             allowContentAccess = false
             setSupportMultipleWindows(false)
             // Google refuses sign-in from a page that calls itself an embedded web view ("; wv"), so present as Chrome.
-            userAgentString = userAgentString.replace("; wv", "").replace(Regex(" Version/\\d+\\.\\d+"), "")
+            userAgentString = BrowserUa.clean(userAgentString)
         }
         web.webChromeClient = WebChromeClient()
         web.webViewClient = object : WebViewClient() {

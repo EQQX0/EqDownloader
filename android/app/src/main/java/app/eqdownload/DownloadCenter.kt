@@ -241,6 +241,27 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
     }
 
     override fun execute(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit) {
+        try {
+            executeYtDlp(spec, id, onProgress)
+        } catch (e: DownloadCancelled) {
+            throw e
+        } catch (e: Throwable) {
+            if (!tiktokFallbackApplies(spec, e)) throw e
+            // yt-dlp cannot get past TikTok's page check, and the user is signed in: load the page in a web view instead.
+            DebugLog.add("fallback", "$id TikTok refused yt-dlp, trying the web view")
+            val outDir = File(spec.options.first { it.first == "-P" }.second!!)
+            TikTokFetcher.download(context, id, spec.url, outDir, onProgress)
+        }
+    }
+
+    /** Only video downloads of a signed-in TikTok link that yt-dlp could not open because the site refused it. */
+    private fun tiktokFallbackApplies(spec: CommandSpec, e: Throwable): Boolean =
+        TikTokFetcher.applies(spec.url) &&
+            spec.options.none { it.first == "-x" } &&
+            spec.options.any { it.first == "-P" } &&
+            ErrorMapper.fromThrowable(e).code == "blocked"
+
+    private fun executeYtDlp(spec: CommandSpec, id: String, onProgress: (Float, Long, String) -> Unit) {
         val fast = YtDlpRuntime.fastDownloads
         try {
             runOnce(spec, id, fast, onProgress)
@@ -285,7 +306,7 @@ private class AndroidBackend(private val context: Context) : DownloadBackend {
         }
     }
 
-    override fun destroy(id: String): Boolean = YoutubeDL.getInstance().destroyProcessById(id)
+    override fun destroy(id: String): Boolean = TikTokFetcher.cancel(id) || YoutubeDL.getInstance().destroyProcessById(id)
 
     override fun save(file: File): String =
         MediaStoreSaver.saveNamed(context, file, FileNames.mimeFor(FileNames.split(file.name).second)).displayName
