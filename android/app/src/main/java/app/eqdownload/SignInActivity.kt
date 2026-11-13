@@ -15,6 +15,7 @@ import android.webkit.WebViewClient
 import android.widget.Button
 import android.widget.LinearLayout
 import android.widget.TextView
+import android.widget.Toast
 
 /**
  * Opens a site's own login page in a plain web view. The user types the password into the site, never into this app.
@@ -99,8 +100,9 @@ class SignInActivity : Activity() {
             manager.flush()
             val lines = site.cookieSources.flatMap { (page, domain) -> Netscape.fromHeader(manager.getCookie(page), domain) }
             val text = Netscape.file(lines)
-            // Keep an earlier sign-in when this window holds no cookies for the site.
-            if (Netscape.hasCookies(text)) CookieStore.save(site, text)
+            // Keep an earlier sign-in unless this window holds a real session; visitor cookies are not a sign-in.
+            if (Netscape.hasSession(text, site.sessionCookies)) CookieStore.save(site, text)
+            else Toast.makeText(this, "Not signed in to ${site.label} yet. Log in, then tap Done.", Toast.LENGTH_LONG).show()
         } catch (e: Exception) {
             DebugLog.add("signin", "${site.id} ${e.javaClass.simpleName}: ${e.message?.take(300)}")
         }

@@ -68,4 +68,12 @@ class CookiesTest {
             dir.deleteRecursively()
         }
     }
+
+    @Test
+    fun visitorCookiesAreNotASignIn() {
+        val visitor = Netscape.file(Netscape.fromHeader("ttwid=a; msToken=b", ".tiktok.com"))
+        assertFalse(Netscape.hasSession(visitor, Site.TIKTOK.sessionCookies))
+        val signedIn = Netscape.file(Netscape.fromHeader("ttwid=a; sessionid=c", ".tiktok.com"))
+        assertTrue(Netscape.hasSession(signedIn, Site.TIKTOK.sessionCookies))
+    }
 }

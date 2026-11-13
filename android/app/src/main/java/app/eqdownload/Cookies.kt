@@ -13,6 +13,13 @@ enum class Site(val id: String, val label: String, val loginUrl: String, private
     ),
     TIKTOK("tiktok", "TikTok", "https://www.tiktok.com/login", listOf("tiktok.com"));
 
+    /** Cookies that exist only after a real sign-in. A visitor's cookies (ttwid, msToken) do not count. */
+    val sessionCookies: Set<String>
+        get() = when (this) {
+            INSTAGRAM, TIKTOK -> setOf("sessionid")
+            YOUTUBE -> setOf("SAPISID", "__Secure-3PSID", "LOGIN_INFO")
+        }
+
     fun matchesHost(host: String): Boolean {
         val h = host.lowercase()
         return hosts.any { h == it || h.endsWith(".$it") }
@@ -71,6 +78,12 @@ object Netscape {
         (listOf("# Netscape HTTP Cookie File", "# Written by EqDownload. Contains sign-in cookies: do not share.", "") + cookieLines)
             .joinToString("\n") + "\n"
 
+    /** True when the file holds at least one of [names], which only a signed-in session has. */
+    fun hasSession(text: String, names: Set<String>): Boolean =
+        text.lineSequence().any {
+            (!it.startsWith("#") || it.startsWith("#HttpOnly_")) && it.split('	').getOrNull(5) in names
+        }
+
     fun hasCookies(text: String): Boolean =
         text.lineSequence().any { it.isNotBlank() && (!it.startsWith("#") || it.startsWith("#HttpOnly_")) }
 }
@@ -84,7 +97,7 @@ object CookieStore {
 
     fun has(site: Site): Boolean =
         try {
-            fileFor(site)?.takeIf { it.isFile }?.readText()?.let(Netscape::hasCookies) ?: false
+            fileFor(site)?.takeIf { it.isFile }?.readText()?.let { Netscape.hasSession(it, site.sessionCookies) } ?: false
         } catch (e: Exception) {
             false
         }

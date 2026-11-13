@@ -1,6 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
-import { cookieBelongsTo, siteForUrl, type Site } from '@eq/ui/engine';
+import { cookieBelongsTo, SITE_SESSION_COOKIES, siteForUrl, type Site } from '@eq/ui/engine';
 
 /** The parts of an Electron cookie this file needs. */
 export interface JarCookie {
@@ -44,6 +44,14 @@ export function hasCookies(text: string): boolean {
   return text.split('\n').some((l) => l.trim() !== '' && (!l.startsWith('#') || l.startsWith('#HttpOnly_')));
 }
 
+/** True when the file holds a cookie that only a signed-in session has (see SITE_SESSION_COOKIES). */
+export function hasSession(text: string, site: Site): boolean {
+  return text.split('\n').some((l) => {
+    if (l.startsWith('#') && !l.startsWith('#HttpOnly_')) return false;
+    return SITE_SESSION_COOKIES[site].includes(l.split('\t')[5] ?? '');
+  });
+}
+
 export class CookieJarDir {
   constructor(private readonly dir: string) {}
 
@@ -63,7 +71,7 @@ export class CookieJarDir {
 
   has(site: Site): boolean {
     try {
-      return hasCookies(fs.readFileSync(this.fileFor(site), 'utf8'));
+      return hasSession(fs.readFileSync(this.fileFor(site), 'utf8'), site);
     } catch {
       return false;
     }

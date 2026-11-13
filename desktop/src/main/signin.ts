@@ -1,6 +1,6 @@
 import { BrowserWindow, session as electronSession } from 'electron';
 import { SITE_LABELS, SITE_LOGIN_URLS, type Site } from '@eq/ui/engine';
-import { hasCookies, toNetscape, type CookieJarDir } from './cookiejar';
+import { hasSession, toNetscape, type CookieJarDir } from './cookiejar';
 
 /** A current desktop Chrome string. Google refuses sign-in from browsers that call themselves Electron. */
 function chromeUserAgent(): string {
@@ -56,7 +56,7 @@ export function signIn(site: Site, jar: CookieJarDir, parent: BrowserWindow | nu
           const cookies = await ses.cookies.get({});
           const text = toNetscape(cookies, site);
           // Only replace the saved file when the window held cookies for the site, so closing early keeps an earlier sign-in.
-          if (hasCookies(text)) jar.save(site, text);
+          if (hasSession(text, site)) jar.save(site, text);
         } catch {
           // Keep whatever was saved before.
         }

@@ -23,6 +23,13 @@ export const SITE_COOKIE_DOMAINS: Record<Site, readonly string[]> = {
   tiktok: ['tiktok.com'],
 };
 
+/** Cookies that exist only after a real sign-in. A visitor's cookies (ttwid, msToken) do not count. */
+export const SITE_SESSION_COOKIES: Record<Site, readonly string[]> = {
+  instagram: ['sessionid'],
+  youtube: ['SAPISID', '__Secure-3PSID', 'LOGIN_INFO'],
+  tiktok: ['sessionid'],
+};
+
 const HOSTS: ReadonlyArray<readonly [Site, readonly string[]]> = [
   ['instagram', ['instagram.com']],
   ['youtube', ['youtube.com', 'youtu.be', 'youtube-nocookie.com']],

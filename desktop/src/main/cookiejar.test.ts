@@ -2,7 +2,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { CookieJarDir, hasCookies, toNetscape } from './cookiejar';
+import { CookieJarDir, hasCookies, hasSession, toNetscape } from './cookiejar';
 
 const NOW = 1_700_000_000;
 
@@ -67,5 +67,14 @@ describe('CookieJarDir', () => {
     jar.save('youtube', toNetscape([{ name: 'SID', value: '1', domain: '.youtube.com' }], 'youtube', NOW));
     jar.remove('youtube');
     expect(jar.has('youtube')).toBe(false);
+  });
+});
+
+describe('hasSession', () => {
+  it('needs a session cookie, not just visitor cookies', () => {
+    const visitor = toNetscape([{ name: 'ttwid', value: 'a', domain: '.tiktok.com' }], 'tiktok', NOW);
+    expect(hasSession(visitor, 'tiktok')).toBe(false);
+    const signedIn = toNetscape([{ name: 'sessionid', value: 'b', domain: '.tiktok.com', httpOnly: true }], 'tiktok', NOW);
+    expect(hasSession(signedIn, 'tiktok')).toBe(true);
   });
 });
