@@ -176,6 +176,8 @@ jobs:
 
           Android (EqDownload.apk): arm64-v8a only, Android 10 or newer. It builds and its unit tests pass in CI. It has not been run on a device or emulator, so treat it as untested until the owner tries it.
 
+          New: Settings has an Accounts section for Instagram, YouTube and TikTok. Some videos only open for signed-in people: age-limited TikToks, private Instagram posts, YouTube bot checks. EqDownload loads links like a logged-out visitor, so it hits the same wall you would. Sign in and it sees what your account sees. You type your password on the site's own page. The app keeps only the sign-in cookies, on your device, and uses them for links from that site. Sign out deletes them. The sign-in screens have not been tried on a real device or window yet.
+
           Bundled tools: yt-dlp ${YTDLP_TAG}. ffmpeg is a GPL build; the source offer is in the README.
 
           SHA-256 values for both files are in SHA256SUMS.txt.

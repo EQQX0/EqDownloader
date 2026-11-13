@@ -54,7 +54,9 @@ Settings shows the app version. Press Check for app update to ask GitHub for the
 
 Sites change often, and yt-dlp changes with them. If a link that used to work stops working, open Settings and press Update engine. On Windows the app asks GitHub for the newest yt-dlp release and checks its SHA-256 against the release's published checksum file before using it. On Android the update uses the youtubedl-android library's own updater over HTTPS. It does not check a checksum.
 
-Some links need a login, such as age-limited TikTok videos or private Instagram posts. Open Settings, find Accounts, and sign in to Instagram, YouTube or TikTok. The site's own login page opens in a separate window; you type your password there, not into EqDownload. When you close that window (Done on Android), the app saves that site's sign-in cookies in its private folder on your device and gives them to yt-dlp for links from that site only. Sign out deletes them. The cookies never leave the device. A different region or other blocks still show yt-dlp's reason, and the app does not retry on its own.
+Some videos only open for signed-in people. TikTok hides age-limited posts from visitors. Instagram hides private accounts and many reels. YouTube hides age-limited videos and sometimes asks visitors to prove they are not a bot. EqDownload opens every link like a logged-out visitor, so it hits the same wall you would in a private browser window. If you sign in, it sees what your account sees.
+
+To do that, open Settings, find Accounts, and sign in to Instagram, YouTube or TikTok. The site's own login page opens in a separate window, and you type your password there. EqDownload never sees it. When you close that window (Done on Android), the app saves that site's sign-in cookies in its private folder on your device and gives them to yt-dlp for links from that site only. Sign out deletes them. The cookies never leave the device. A different region or other blocks still show yt-dlp's reason, and the app does not retry on its own.
 
 ## Downloads and Library
 

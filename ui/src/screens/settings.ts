@@ -102,7 +102,7 @@ export const createSettings: ScreenFactory = (store) => {
   });
   const accountsGroup = h('div', { role: 'group', 'aria-label': 'Accounts', class: 'setting-group' },
     h('h2', { class: 'setting-heading' }, 'Accounts'),
-    h('p', { class: 'setting-note' }, 'Some links need a login, such as age-limited TikTok or private Instagram posts. You sign in on the site itself. The app keeps only the sign-in cookies, on this device, and uses them for that site.'),
+    h('p', { class: 'setting-note' }, 'Some videos only open for signed-in people: age-limited TikToks, private Instagram posts, YouTube bot checks. EqDownload loads links like a logged-out visitor, so it hits the same wall you would. Sign in and it sees what your account sees. You type your password on the site itself. The app keeps only the sign-in cookies, on this device, and uses them for that site.'),
     ...accountRows.map((r) => r.row));
   accountsGroup.hidden = !store.canSignIn;
 
