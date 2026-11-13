@@ -37,6 +37,8 @@ export interface YtDlpEngineOptions {
   ytdlpArgsPrefix?: string[];
   /** Replaces the built-in `-U` self-update. Must resolve to the new version string. */
   updater?: () => Promise<string>;
+  /** Cookie file (Netscape format) to use for this link, when the user signed in to its site. */
+  cookieFileFor?: (url: string) => string | undefined;
 }
 
 export interface ProgressInfo {
@@ -45,10 +47,11 @@ export interface ProgressInfo {
   etaSec: number | null;
 }
 
-export function buildArgs(url: string, preset: Preset, destination: string): string[] {
+export function buildArgs(url: string, preset: Preset, destination: string, cookieFile?: string): string[] {
   const spec = presetToSpec(preset);
   const args = [
     ...ISOLATION_ARGS,
+    ...(cookieFile ? ['--cookies', cookieFile] : []),
     '--newline',
     '--no-colors',
     '--no-playlist',
@@ -112,7 +115,7 @@ export function parseAria2Line(line: string): ProgressInfo | null {
 
 export function mapStderr(text: string): EngineErrorCode {
   if (/Unsupported URL/i.test(text)) return 'unsupported';
-  if (/Sign in|\bage\b|not available in your country/i.test(text)) return 'blocked';
+  if (/Sign in|Log in\b|Login required|--cookies|\bage\b|not available in your country/i.test(text)) return 'blocked';
   if (/Unable to download webpage/i.test(text)) return 'network';
   if (/HTTP Error 403|nsig/i.test(text)) return 'outdated';
   if (/No space left|Permission denied/i.test(text)) return 'disk';
@@ -182,7 +185,8 @@ export class YtDlpEngine implements Engine {
 
   async probe(url: string): Promise<ProbeResult> {
     if (!isHttpUrl(url)) throw { code: 'unsupported', message: 'Not a supported link' } satisfies EngineError;
-    const r = await this.run(['-J', '--no-playlist', '--no-warnings', '--', url]);
+    const cookies = this.opts.cookieFileFor?.(url);
+    const r = await this.run(['-J', '--no-playlist', '--no-warnings', ...(cookies ? ['--cookies', cookies] : []), '--', url]);
     if (r.code !== 0) throw errorFromStderr(r.stderr);
     let j: Record<string, unknown>;
     try {
@@ -226,7 +230,7 @@ export class YtDlpEngine implements Engine {
         ...(this.opts.aria2cPath && !this.aria2Failed && existsSync(this.opts.aria2cPath)
           ? ['--downloader', this.opts.aria2cPath, '--downloader-args', 'aria2c:-x 8 -s 8 -k 1M --summary-interval=1']
           : []),
-        ...buildArgs(url, preset, staging),
+        ...buildArgs(url, preset, staging, this.opts.cookieFileFor?.(url)),
       ];
       child = spawn(this.opts.ytdlpPath, args, {
         shell: false,

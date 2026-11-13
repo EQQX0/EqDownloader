@@ -7,7 +7,11 @@ export interface UiError {
   offerUpdate: boolean;
   /** Show the Choose folder action (the saved destination is no longer allowed). */
   offerChoose?: boolean;
+  /** The site wants a signed-in account. Settings has the Accounts rows that fix it. */
+  needsLogin?: boolean;
 }
+
+const LOGIN_NEEDED = /log ?in|sign in|authentication|--cookies|cookies-from-browser|cookies for the authentication/i;
 
 export const NO_LINK: UiError = { code: 'nolink', message: 'No link found.', offerUpdate: false };
 
@@ -23,6 +27,15 @@ export function describeError(err: EngineError, destination: string): UiError {
     case 'disk':
       return { code: err.code, message: `Cannot write to the destination: ${destination}.`, offerUpdate: false };
     case 'blocked':
+      if (LOGIN_NEEDED.test(err.message)) {
+        return {
+          code: err.code,
+          message: 'This link needs a login. Open Settings, sign in to the site under Accounts, then try again.',
+          offerUpdate: false,
+          needsLogin: true,
+        };
+      }
+      return { code: err.code, message: err.message || 'Something went wrong.', offerUpdate: false };
     case 'unknown':
     default:
       return { code: err.code, message: err.message || 'Something went wrong.', offerUpdate: false };

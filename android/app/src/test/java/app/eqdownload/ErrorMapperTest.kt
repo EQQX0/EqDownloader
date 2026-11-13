@@ -9,6 +9,7 @@ class ErrorMapperTest {
     private val cases = listOf(
         "ERROR: Unsupported URL: x" to "unsupported",
         "ERROR: Sign in to confirm you are not a bot" to "blocked",
+        "ERROR: [TikTok] 7706848607252565255: This post may not be comfortable for some audiences. Log in for access. Use --cookies-from-browser or --cookies for the authentication." to "blocked",
         "ERROR: This video may be inappropriate for some users. Confirm your age" to "blocked",
         "This video is not available in your country" to "blocked",
         "ERROR: Unable to download webpage: boom" to "network",

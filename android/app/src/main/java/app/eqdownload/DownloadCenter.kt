@@ -125,7 +125,7 @@ class DownloadCore(private val backend: DownloadBackend) {
             checkCancelled(job)
             job.staging.mkdirs()
             checkCancelled(job)
-            val spec = YtDlpArgs.download(start.url, start.preset, job.staging.absolutePath)
+            val spec = YtDlpArgs.download(start.url, start.preset, job.staging.absolutePath, CookieStore.fileFor(start.url))
             var lastEmit = 0L
             backend.execute(spec, id) { progress, eta, line ->
                 if (job.cancelled) {
@@ -296,6 +296,11 @@ object DownloadCenter {
     @Volatile
     private var core: DownloadCore? = null
 
-    fun install(context: Context): DownloadCore =
+    fun install(context: Context): DownloadCore {
+        CookieStore.dir = File(context.applicationContext.filesDir, "cookies")
+        return get(context)
+    }
+
+    private fun get(context: Context): DownloadCore =
         core ?: synchronized(this) { core ?: DownloadCore(AndroidBackend(context.applicationContext)).also { core = it } }
 }

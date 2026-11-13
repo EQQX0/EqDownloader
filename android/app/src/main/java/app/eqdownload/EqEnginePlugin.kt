@@ -55,7 +55,7 @@ class EqEnginePlugin : Plugin() {
         pool.execute {
             try {
                 YtDlpRuntime.ensure(context)
-                val spec = YtDlpArgs.probe(url)
+                val spec = YtDlpArgs.probe(url, CookieStore.fileFor(url))
                 val request = YoutubeDLRequest(spec.url)
                 for ((k, v) in spec.options) if (v == null) request.addOption(k) else request.addOption(k, v)
                 request.addCommands(listOf("--"))
@@ -229,6 +229,45 @@ class EqEnginePlugin : Plugin() {
     }
 
     private val updating = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    private fun accountStatus(): JSObject =
+        JSObject().also { o -> Site.entries.forEach { o.put(it.id, CookieStore.has(it)) } }
+
+    /** Which sites have saved sign-in cookies. The cookies themselves never go to the web layer. */
+    @PluginMethod
+    fun accountStatus(call: PluginCall) {
+        call.resolve(accountStatus())
+    }
+
+    /** Opens the site's own login page in SignInActivity; resolves with the new status once it closes. */
+    @PluginMethod
+    fun signIn(call: PluginCall) {
+        val site = Site.parse(call.getString("site")) ?: return call.reject("Unknown site.", "unknown")
+        try {
+            val intent = Intent(context, SignInActivity::class.java).putExtra(SignInActivity.EXTRA_SITE, site.id)
+            startActivityForResult(call, intent, "signInResult")
+        } catch (e: Throwable) {
+            reject(call, e)
+        }
+    }
+
+    @com.getcapacitor.annotation.ActivityCallback
+    private fun signInResult(call: PluginCall?, result: androidx.activity.result.ActivityResult) {
+        call?.resolve(accountStatus())
+    }
+
+    /** Deletes the saved cookies for the site and clears the web view's cookie jar. */
+    @PluginMethod
+    fun signOut(call: PluginCall) {
+        val site = Site.parse(call.getString("site")) ?: return call.reject("Unknown site.", "unknown")
+        try {
+            CookieStore.remove(site)
+            android.webkit.CookieManager.getInstance().removeAllCookies(null)
+            call.resolve(accountStatus())
+        } catch (e: Throwable) {
+            reject(call, e)
+        }
+    }
 
     /** Opens the support page in the browser. The address is fixed here; JavaScript cannot change it. */
     @PluginMethod

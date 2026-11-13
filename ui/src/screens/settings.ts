@@ -1,4 +1,4 @@
-import type { Preset } from '../engine';
+import { SITES, SITE_LABELS, type Preset, type Site } from '../engine';
 import { h } from '../lib/dom';
 import { PRESET_LABELS } from '../lib/labels';
 import { PRESET_LIST, type PasteOption } from '../state/store';
@@ -83,6 +83,29 @@ export const createSettings: ScreenFactory = (store) => {
     h('h2', { class: 'setting-heading' }, 'Paste behavior'), ...toggles.map((t) => t.row));
   pasteGroup.hidden = !store.canReadClipboard;
 
+  // Accounts: sign in to a site in its own window so yt-dlp can use the account for login-only links.
+  const accountRows = SITES.map((site: Site) => {
+    const status = h('span', { id: `account-${site}-status`, testid: `account-${site}-status`, class: 'setting-note' });
+    const btn = h('button', { type: 'button', testid: `account-${site}`, class: 'button setting-action account-action', 'aria-describedby': `account-${site}-status` });
+    btn.addEventListener('click', async () => {
+      btn.disabled = true;
+      btn.textContent = store.state.accounts[site] ? 'Signing out...' : 'Waiting for sign in...';
+      try {
+        await (store.state.accounts[site] ? store.signOut(site) : store.signIn(site));
+      } finally {
+        btn.disabled = false;
+        sync();
+      }
+    });
+    const row = h('div', { class: 'setting account-row' }, h('span', { class: 'account-name' }, SITE_LABELS[site]), status, btn);
+    return { site, status, btn, row };
+  });
+  const accountsGroup = h('div', { role: 'group', 'aria-label': 'Accounts', class: 'setting-group' },
+    h('h2', { class: 'setting-heading' }, 'Accounts'),
+    h('p', { class: 'setting-note' }, 'Some links need a login, such as age-limited TikTok or private Instagram posts. You sign in on the site itself. The app keeps only the sign-in cookies, on this device, and uses them for that site.'),
+    ...accountRows.map((r) => r.row));
+  accountsGroup.hidden = !store.canSignIn;
+
   const el = h(
     'div', { class: 'screen screen-settings' },
     h('h1', { class: 'monument' }, h('span', { class: 'monument-line' }, 'Settings')),
@@ -90,6 +113,7 @@ export const createSettings: ScreenFactory = (store) => {
       h('p', { class: 'setting' }, h('label', { for: 'destination', class: 'run-in' }, 'Destination folder: '), dest, ' ', choose),
       h('p', { class: 'setting' }, h('label', { for: 'default-preset', class: 'run-in' }, 'Default quality: '), select),
       pasteGroup,
+      accountsGroup,
       h('p', { class: 'setting' }, h('label', { for: 'engine-version', class: 'run-in' }, 'Engine version: '), version, ' ', update),
       appRow,
       supportRow,
@@ -107,6 +131,11 @@ export const createSettings: ScreenFactory = (store) => {
     if (select.value !== s.preset) select.value = s.preset;
     for (const t of toggles) t.box.checked = s[t.key];
     toggles[2]!.box.disabled = !s.pasteFinds;
+    for (const r of accountRows) {
+      const on = store.state.accounts[r.site];
+      r.status.textContent = on ? 'Signed in' : 'Not signed in';
+      if (!r.btn.disabled) r.btn.textContent = on ? 'Sign out' : 'Sign in';
+    }
     version.textContent = s.engineVersion ?? 'Not checked yet';
     appVer.textContent = s.appVersion ?? 'Unknown';
     const u = store.state.appUpdate;

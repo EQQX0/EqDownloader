@@ -89,11 +89,12 @@ export const createDownloads: ScreenFactory = (store) => {
             : item.state === 'done' && item.tookMs !== undefined
               ? `took ${formatDuration(elapsed)}`
               : '';
-      const msg = item.state === 'failed' && item.error ? describeError(item.error, settings.destination).message : '';
+      const described = item.state === 'failed' && item.error ? describeError(item.error, settings.destination) : null;
+      const msg = described?.message ?? '';
       row.error.textContent = msg;
       row.error.hidden = !msg;
       row.cancel.hidden = !active;
-      const noRetry = item.error?.code === 'blocked' || item.error?.code === 'unsupported';
+      const noRetry = (item.error?.code === 'blocked' && !described?.needsLogin) || item.error?.code === 'unsupported';
       row.retry.hidden = item.state !== 'failed' || noRetry;
     });
     for (const [id, row] of rows) {

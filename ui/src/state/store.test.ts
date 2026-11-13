@@ -107,11 +107,20 @@ describe('submitLink', () => {
     expect(store.state.error?.offerUpdate).toBe(true);
   });
 
-  it('keeps the engine message for blocked and offers no update', async () => {
+  it('points a login-gated block at Settings > Accounts and offers no update', async () => {
     const { engine, store } = await setup();
     engine.probeError = { code: 'blocked', message: 'Sign in to confirm your age' };
     await store.submitLink('https://a.test/v');
-    expect(store.state.error?.message).toContain('Sign in to confirm your age');
+    expect(store.state.error?.message).toContain('Settings');
+    expect(store.state.error?.needsLogin).toBe(true);
+    expect(store.state.error?.offerUpdate).toBe(false);
+  });
+
+  it('keeps the engine message for a block that signing in cannot fix', async () => {
+    const { engine, store } = await setup();
+    engine.probeError = { code: 'blocked', message: 'This video is not available in your country' };
+    await store.submitLink('https://a.test/v');
+    expect(store.state.error?.message).toContain('not available in your country');
     expect(store.state.error?.offerUpdate).toBe(false);
   });
 

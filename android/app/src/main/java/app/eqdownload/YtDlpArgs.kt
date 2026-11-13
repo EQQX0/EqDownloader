@@ -12,7 +12,8 @@ data class CommandSpec(val options: List<Pair<String, String?>>, val url: String
 object YtDlpArgs {
     const val OUTPUT_TEMPLATE = "%(title).120B [%(id)s].%(ext)s"
 
-    fun download(url: String, preset: String, outDir: String): CommandSpec {
+    /** `cookieFile` is the Netscape file saved by the sign-in screen for this link's site, when there is one. */
+    fun download(url: String, preset: String, outDir: String, cookieFile: String? = null): CommandSpec {
         val safeUrl = UrlGuard.requireHttpUrl(url)
         val spec = Presets.spec(preset)
         val options = mutableListOf<Pair<String, String?>>(
@@ -27,6 +28,7 @@ object YtDlpArgs {
             "-P" to outDir,
             "-o" to OUTPUT_TEMPLATE,
         )
+        if (cookieFile != null) options += "--cookies" to cookieFile
         if (spec.extractAudio && spec.audioFormat != null) {
             options += "-x" to null
             options += "--audio-format" to spec.audioFormat
@@ -35,14 +37,14 @@ object YtDlpArgs {
     }
 
     /** The library adds `--dump-json` itself. */
-    fun probe(url: String): CommandSpec =
+    fun probe(url: String, cookieFile: String? = null): CommandSpec =
         CommandSpec(
-            listOf(
+            listOf<Pair<String, String?>>(
                 "--no-playlist" to null,
                 "--no-warnings" to null,
                 // The format lists are not shown, so skip fetching the HLS and DASH ones: about 40% faster on YouTube.
                 "--extractor-args" to "youtube:skip=translated_subs,hls,dash",
-            ),
+            ) + (if (cookieFile != null) listOf("--cookies" to cookieFile) else emptyList()),
             UrlGuard.requireHttpUrl(url),
         )
 }

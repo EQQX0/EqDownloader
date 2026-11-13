@@ -91,4 +91,14 @@ class YtDlpArgsTest {
         assertEquals(listOf("--", "https://example.test/v"), cmd.takeLast(2))
         assertTrue(cmd.contains("--no-playlist"))
     }
+
+    @Test
+    fun addsCookiesOnlyWhenAFileIsGiven() {
+        val with = YtDlpArgs.download("https://www.tiktok.com/@u/video/1", "best", "/s", "/data/cookies/tiktok.txt")
+        assertTrue(with.options.contains("--cookies" to "/data/cookies/tiktok.txt"))
+        assertTrue(with.commandLine().indexOf("--cookies") < with.commandLine().indexOf("--"))
+        assertTrue(YtDlpArgs.download("https://example.test/v", "best", "/s").options.none { it.first == "--cookies" })
+        assertTrue(YtDlpArgs.probe("https://example.test/v", "/c.txt").options.contains("--cookies" to "/c.txt"))
+        assertTrue(YtDlpArgs.probe("https://example.test/v").options.none { it.first == "--cookies" })
+    }
 }

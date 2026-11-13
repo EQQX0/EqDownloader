@@ -1,4 +1,5 @@
 import { registerPlugin, type PluginListenerHandle } from '@capacitor/core';
+import type { Site } from './sites';
 import type { DownloadItem, Engine, EngineError, EngineErrorCode, Preset, ProbeResult } from './types';
 
 /** Wire shape of the Kotlin `EqEngine` plugin (app.eqdownload.EqEnginePlugin). */
@@ -14,6 +15,9 @@ export interface EqEnginePlugin {
   readClipboard(): Promise<{ text: string }>;
   quickInfo(opts: { url: string }): Promise<{ title: string; thumbnail: string | null }>;
   openSupport(): Promise<void>;
+  accountStatus(): Promise<Record<Site, boolean>>;
+  signIn(opts: { site: Site }): Promise<Record<Site, boolean>>;
+  signOut(opts: { site: Site }): Promise<Record<Site, boolean>>;
   readDebugLog(): Promise<{ text: string }>;
   clearDebugLog(): Promise<void>;
   addListener(event: 'progress', cb: (item: DownloadItem) => void): Promise<PluginListenerHandle>;
@@ -107,6 +111,18 @@ export class CapacitorEngine implements Engine {
 
   openSupport(): Promise<void> {
     return call(this.plugin.openSupport());
+  }
+
+  accountStatus(): Promise<Record<Site, boolean>> {
+    return call(this.plugin.accountStatus());
+  }
+
+  signIn(site: Site): Promise<Record<Site, boolean>> {
+    return call(this.plugin.signIn({ site }));
+  }
+
+  signOut(site: Site): Promise<Record<Site, boolean>> {
+    return call(this.plugin.signOut({ site }));
   }
 
   async readDebugLog(): Promise<string> {

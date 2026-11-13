@@ -362,6 +362,11 @@ body::before {
 .check-box:disabled { opacity: 0.5; cursor: not-allowed; }
 .check-box:disabled + .toggle-text { opacity: 0.6; }
 
+/* ---------- accounts ---------- */
+.account-row { display: flex; flex-wrap: wrap; align-items: center; gap: var(--space-1) var(--space-2); }
+.account-name { font-weight: 500; min-width: 6rem; }
+.account-action { margin-top: 0; margin-left: auto; }
+
 /* ---------- animated download button: ring, arrow drops, ring fills, check ---------- */
 .start { gap: 0.75rem; }
 .dl-icon { width: 2rem; height: 2rem; flex: none; overflow: visible; }

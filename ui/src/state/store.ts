@@ -1,4 +1,4 @@
-import type { DownloadItem, Engine, Preset, ProbeResult } from '../engine';
+import type { DownloadItem, Engine, Preset, ProbeResult, Site } from '../engine';
 import type { AppUpdater } from '../engine/getEngine';
 import { extractUrl } from '../lib/url';
 import { asEngineError, describeError, NO_LINK, type UiError } from './errors';
@@ -34,6 +34,8 @@ export interface State {
   error: UiError | null;
   settings: Settings;
   appUpdate: { status: AppUpdateState; version: string | null };
+  /** Which sites the user has signed in to (for yt-dlp cookies). */
+  accounts: Record<Site, boolean>;
 }
 
 /** Platform extras. Everything is optional so the browser and fake engine work with none. */
@@ -46,6 +48,9 @@ export interface Host {
   readDebugLog?: () => Promise<string>;
   clearDebugLog?: () => Promise<void>;
   appUpdater?: AppUpdater;
+  accountStatus?: () => Promise<Record<Site, boolean>>;
+  signIn?: (site: Site) => Promise<Record<Site, boolean>>;
+  signOut?: (site: Site) => Promise<Record<Site, boolean>>;
   storage?: Pick<Storage, 'getItem' | 'setItem'> | null;
 }
 
@@ -56,6 +61,10 @@ export interface Store {
   readonly canReveal: boolean;
   readonly canUpdateApp: boolean;
   readonly canOpenSupport: boolean;
+  /** True when the shell can open a sign-in window (Accounts in Settings). */
+  readonly canSignIn: boolean;
+  signIn(site: Site): Promise<void>;
+  signOut(site: Site): Promise<void>;
   /** True when the shell can read the clipboard itself (Android), so the paste settings apply. */
   readonly canReadClipboard: boolean;
   openSupport(): Promise<void>;
@@ -164,6 +173,7 @@ export function createStore(engine: Engine, host: Host = {}): Store {
       pasteAutoDownload: read(PASTE_KEYS.pasteAutoDownload) === 'true',
     },
     appUpdate: { status: 'idle', version: null },
+    accounts: { instagram: false, youtube: false, tiktok: false },
   };
 
   const listeners = new Set<() => void>();
@@ -287,6 +297,13 @@ export function createStore(engine: Engine, host: Host = {}): Store {
         // The row then shows no version.
       }
     }
+    if (host.accountStatus) {
+      try {
+        state.accounts = await host.accountStatus();
+      } catch {
+        // All sites then show as signed out.
+      }
+    }
     try {
       for (const item of await engine.list()) {
         if (!state.items.some((i) => i.id === item.id)) state.items.push(withTitle(item));
@@ -361,6 +378,21 @@ export function createStore(engine: Engine, host: Host = {}): Store {
     canReveal: typeof host.revealFile === 'function',
     canUpdateApp: !!host.appUpdater,
     canOpenSupport: typeof host.openSupport === 'function',
+    canSignIn: typeof host.signIn === 'function' && typeof host.signOut === 'function' && typeof host.accountStatus === 'function',
+    async signIn(site) {
+      try {
+        set({ accounts: (await host.signIn?.(site)) ?? state.accounts });
+      } catch (e) {
+        set({ error: describeError(asEngineError(e), state.settings.destination) });
+      }
+    },
+    async signOut(site) {
+      try {
+        set({ accounts: (await host.signOut?.(site)) ?? state.accounts });
+      } catch (e) {
+        set({ error: describeError(asEngineError(e), state.settings.destination) });
+      }
+    },
     canReadClipboard: (() => {
       const e = engine as Engine & { readClipboard?: unknown; onClipboard?: unknown };
       return typeof e.readClipboard === 'function' || typeof e.onClipboard === 'function';

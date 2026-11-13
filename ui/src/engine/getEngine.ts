@@ -1,6 +1,7 @@
 import { Capacitor } from '@capacitor/core';
 import { CapacitorEngine } from './capacitor';
 import { FakeEngine } from './fake';
+import type { Site } from './sites';
 import type { Engine } from './types';
 
 /** Extra methods only the desktop shell provides. */
@@ -19,6 +20,11 @@ export interface DesktopExtras {
   openSupport(): Promise<void>;
   readDebugLog(): Promise<string>;
   clearDebugLog(): Promise<void>;
+  /** Which sites have saved sign-in cookies. The cookies themselves never reach the page. */
+  accountStatus(): Promise<Record<Site, boolean>>;
+  /** Opens the site's login page in the shell's own window; resolves with the new status when it closes. */
+  signIn(site: Site): Promise<Record<Site, boolean>>;
+  signOut(site: Site): Promise<Record<Site, boolean>>;
   appUpdater: AppUpdater;
 }
 
@@ -42,6 +48,11 @@ export function hostFor(engine: Engine): Partial<DesktopExtras> {
   if (typeof e.openSupport === 'function') out.openSupport = () => e.openSupport!();
   if (typeof e.readDebugLog === 'function') out.readDebugLog = () => e.readDebugLog!();
   if (typeof e.clearDebugLog === 'function') out.clearDebugLog = () => e.clearDebugLog!();
+  if (typeof e.accountStatus === 'function' && typeof e.signIn === 'function' && typeof e.signOut === 'function') {
+    out.accountStatus = () => e.accountStatus!();
+    out.signIn = (s) => e.signIn!(s);
+    out.signOut = (s) => e.signOut!(s);
+  }
   if (typeof e.appVersion === 'function' && typeof e.checkAppUpdate === 'function' && typeof e.installAppUpdate === 'function') {
     out.appUpdater = { version: () => e.appVersion!(), check: () => e.checkAppUpdate!(), install: () => e.installAppUpdate!() };
   }

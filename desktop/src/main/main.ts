@@ -4,6 +4,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import type { DownloadItem, EngineError, Preset } from '@eq/ui/engine';
+import { CookieJarDir } from './cookiejar';
+import { signIn, signOut } from './signin';
+import { isSite } from '@eq/ui/engine';
 import { checkDestination, isTrustedSender, isUnderAny, mergeFolders, parseAllowedFolders, serializeAllowedFolders, toEnvelope } from './ipc';
 import { resolveBinaries } from './paths';
 import { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions } from './security';
@@ -14,6 +17,12 @@ import { YtDlpEngine } from './ytdlp';
 export { contentSecurityPolicy, hardenSession, hardenWebContents, windowOptions };
 
 const PRESETS: readonly Preset[] = ['best', '1080p', '720p', 'mp3', 'm4a'];
+
+let jarDir: CookieJarDir | null = null;
+/** Sign-in cookies live in the app's private data folder, one file per site. */
+function cookieJar(): CookieJarDir {
+  return (jarDir ??= new CookieJarDir(path.join(app.getPath('userData'), 'cookies')));
+}
 
 function createEngine(): YtDlpEngine {
   const userDataDir = app.getPath('userData');
@@ -30,6 +39,7 @@ function createEngine(): YtDlpEngine {
       return resolveBinaries(bundled).aria2cPath;
     },
     updater: () => updateYtDlp({ userDataDir }),
+    cookieFileFor: (url: string) => cookieJar().cookieFileFor(url),
   };
   return new YtDlpEngine(opts);
 }
@@ -79,6 +89,19 @@ function registerIpc(engine: YtDlpEngine, getWindow: () => BrowserWindow | null)
   handle('eq:cancel', (id) => engine.cancel(str(id, 'id')));
   handle('eq:list', () => engine.list());
   handle('eq:updateEngine', () => engine.updateEngine());
+  const siteArg = (v: unknown) => {
+    if (!isSite(v)) throw { code: 'unknown', message: 'Invalid site' } satisfies EngineError;
+    return v;
+  };
+  handle('eq:accountStatus', () => cookieJar().status());
+  handle('eq:signIn', async (site) => {
+    await signIn(siteArg(site), cookieJar(), getWindow());
+    return cookieJar().status();
+  });
+  handle('eq:signOut', async (site) => {
+    await signOut(siteArg(site), cookieJar());
+    return cookieJar().status();
+  });
   handle('eq:appVersion', () => app.getVersion());
   handle('eq:checkAppUpdate', () => checkAppUpdate(app.getVersion()));
   handle('eq:installAppUpdate', async () => {

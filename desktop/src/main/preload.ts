@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from 'electron';
-import type { DownloadItem, Preset } from '@eq/ui/engine';
+import type { DownloadItem, Preset, Site } from '@eq/ui/engine';
 import type { EqBridge } from '../preload/eq';
 import { unwrapEnvelope, type Envelope } from './ipc';
 
@@ -19,6 +19,9 @@ const bridge: EqBridge = {
   chooseFolder: () => call('eq:chooseFolder'),
   revealFile: (p: string) => call('eq:revealFile', p),
   openSupport: () => call('eq:openSupport'),
+  accountStatus: () => call('eq:accountStatus'),
+  signIn: (site: Site) => call('eq:signIn', site),
+  signOut: (site: Site) => call('eq:signOut', site),
   onProgress(handler: (item: DownloadItem) => void): () => void {
     const listener = (_e: unknown, item: DownloadItem) => handler(item);
     ipcRenderer.on('eq:progress', listener);

@@ -1,4 +1,4 @@
-import type { Engine } from '@eq/ui/engine';
+import type { Engine, Site } from '@eq/ui/engine';
 
 export type EqBridge = Engine & {
   appVersion(): Promise<string>;
@@ -8,6 +8,9 @@ export type EqBridge = Engine & {
   chooseFolder(): Promise<string | null>;
   revealFile(path: string): Promise<void>;
   openSupport(): Promise<void>;
+  accountStatus(): Promise<Record<Site, boolean>>;
+  signIn(site: Site): Promise<Record<Site, boolean>>;
+  signOut(site: Site): Promise<Record<Site, boolean>>;
 };
 
 declare global {

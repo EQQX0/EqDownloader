@@ -101,6 +101,12 @@ describe('buildArgs', () => {
     expect(b[b.indexOf('--audio-format') + 1]).toBe('m4a');
   });
 
+  it('adds --cookies right after the isolation flags only when a cookie file is given', () => {
+    const a = buildArgs('https://www.tiktok.com/@u/video/1', 'best', 'C:\dl', 'C:\data\cookies\tiktok.txt');
+    expect(a.slice(0, 4)).toEqual(['--ignore-config', '--no-plugin-dirs', '--cookies', 'C:\data\cookies\tiktok.txt']);
+    expect(buildArgs('https://x.test/v', 'best', 'C:\dl')).not.toContain('--cookies');
+  });
+
   it('uses the preset format selector', () => {
     const a = buildArgs('https://x.test/v', '720p', 'C:\\dl');
     expect(a[a.indexOf('-f') + 1]).toBe('bv*[height<=720][format_note!*=?watermark]+ba/b[height<=720][format_note!*=?watermark]');
@@ -111,6 +117,7 @@ describe('mapStderr', () => {
   const cases: Array<[string, string]> = [
     ['ERROR: Unsupported URL: x', 'unsupported'],
     ['ERROR: Sign in to confirm you are not a bot', 'blocked'],
+    ['ERROR: [TikTok] 7706848607252565255: This post may not be comfortable for some audiences. Log in for access. Use --cookies-from-browser or --cookies for the authentication.', 'blocked'],
     ['ERROR: This video may be inappropriate for some users. Confirm your age', 'blocked'],
     ['This video is not available in your country', 'blocked'],
     ['ERROR: Unable to download webpage: boom', 'network'],
