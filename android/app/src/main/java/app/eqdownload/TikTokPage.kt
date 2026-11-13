@@ -71,6 +71,29 @@ object TikTokPage {
         return null
     }
 
+    private val VIDEO_PATH = Regex("/@([A-Za-z0-9._-]+)/video/(\\d+)/?")
+
+    /**
+     * The page address TikTok's own web player uses for a video: `https://www.tiktok.com/@user/video/ID`, with no query
+     * or fragment. Null for short links (vt., vm.), other hosts, photo posts and anything that is not a video page.
+     */
+    fun canonicalUrl(finalUrl: String): String? {
+        val uri = try {
+            java.net.URI(finalUrl.trim())
+        } catch (e: Exception) {
+            return null
+        }
+        if (uri.scheme != "https" && uri.scheme != "http") return null
+        val host = uri.host?.lowercase() ?: return null
+        if (host != "tiktok.com" && !host.endsWith(".tiktok.com")) return null
+        if (host.startsWith("vt.") || host.startsWith("vm.")) return null
+        val m = VIDEO_PATH.matchEntire(uri.rawPath ?: return null) ?: return null
+        return "https://www.tiktok.com/@${m.groupValues[1]}/video/${m.groupValues[2]}"
+    }
+
+    /** [url] without its query and fragment, so a log line carries no share parameters. */
+    fun withoutQuery(url: String): String = url.substringBefore('#').substringBefore('?')
+
     /** True once the page holds either a video or a status code, so an interim page (redirect, challenge) is skipped. */
     fun isReady(json: String): Boolean = try {
         val root = JSONObject(json)

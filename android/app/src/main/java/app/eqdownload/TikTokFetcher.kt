@@ -37,6 +37,13 @@ object TikTokFetcher {
     private const val POLL_MS = 500L
     private const val POLL_TRIES = 24
 
+    /** Polls (about 4 s) to wait after the canonical page is loaded before trying a desktop user agent. */
+    private const val DESKTOP_AFTER_TRIES = 8
+    private const val DESKTOP_UA = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0.0.0 Safari/537.36"
+
+    /** [pageUrl] is the video's canonical page address, or null when the page never showed one. */
+    private data class Loaded(val media: TikTokPage.Media, val ua: String, val pageUrl: String?)
+
     private val cancels = ConcurrentHashMap<String, AtomicBoolean>()
 
     /** True for a link this fallback can handle, when the user has signed in. */
@@ -57,7 +64,7 @@ object TikTokFetcher {
         val cancelled = AtomicBoolean(false)
         cancels[id] = cancelled
         try {
-            val (media, ua) = loadMedia(context.applicationContext, url, cancelled)
+            val (media, ua, pageUrl) = loadMedia(context.applicationContext, url, cancelled)
             DebugLog.add("tiktok", "$id page read, ${media.urls.size} address(es)")
             outDir.mkdirs()
             val target = File(outDir, TikTokPage.fileName(media))
@@ -65,7 +72,7 @@ object TikTokFetcher {
             for ((n, mediaUrl) in media.urls.withIndex()) {
                 if (cancelled.get()) throw DownloadCancelled()
                 try {
-                    fetch(mediaUrl, target, ua, cancelled, onProgress)
+                    fetch(mediaUrl, target, ua, pageUrl, cancelled, onProgress)
                     DebugLog.add("tiktok", "$id downloaded from address ${n + 1}")
                     return target
                 } catch (e: DownloadCancelled) {
@@ -81,11 +88,18 @@ object TikTokFetcher {
         }
     }
 
-    private fun loadMedia(context: Context, url: String, cancelled: AtomicBoolean): Pair<TikTokPage.Media, String> {
+    private fun loadMedia(context: Context, url: String, cancelled: AtomicBoolean): Loaded {
         val main = Handler(Looper.getMainLooper())
         val result = CompletableFuture<String>()
         var web: WebView? = null
         var ua = ""
+        // All of these are only touched on the main thread until the result is completed.
+        var stage = "original"
+        var canonicalAddr: String? = null
+        var canonicalFromTry = 0
+        var rewritten = false
+        var desktop = false
+        var pageUrl = ""
         main.post {
             try {
                 val w = WebView(context)
@@ -123,7 +137,18 @@ object TikTokFetcher {
                                     if (last != null) result.complete(last)
                                     else result.completeExceptionally(EngineException("unknown", "TikTok's page did not load in time."))
                                 }
-                                else -> main.postDelayed(this, POLL_MS)
+                                else -> {
+                                    // Still no video after the canonical page had time to load: one reload as desktop Chrome.
+                                    val canonical = canonicalAddr
+                                    if (canonical != null && !desktop && tries - canonicalFromTry >= DESKTOP_AFTER_TRIES) {
+                                        desktop = true
+                                        stage = "desktop"
+                                        w.settings.userAgentString = DESKTOP_UA
+                                        ua = DESKTOP_UA
+                                        w.loadUrl(canonical)
+                                    }
+                                    main.postDelayed(this, POLL_MS)
+                                }
                             }
                         }
                     }
@@ -134,6 +159,22 @@ object TikTokFetcher {
                         request.url.scheme != "https"
 
                     override fun onPageFinished(view: WebView, finished: String) {
+                        pageUrl = TikTokPage.withoutQuery(finished)
+                        // The short link lands on the video page with share parameters, which gets TikTok's mobile
+                        // "reflow" layout. Load the plain video address once, as yt-dlp does.
+                        val canonical = TikTokPage.canonicalUrl(finished)
+                        if (canonical != null) {
+                            if (canonicalAddr == null) {
+                                canonicalAddr = canonical
+                                canonicalFromTry = tries
+                            }
+                            if (!rewritten && finished != canonical) {
+                                rewritten = true
+                                stage = "canonical"
+                                canonicalFromTry = tries
+                                view.loadUrl(canonical)
+                            }
+                        }
                         // Redirects (short links) finish several pages; one polling chain covers them all.
                         if (!polling) {
                             polling = true
@@ -149,9 +190,9 @@ object TikTokFetcher {
         try {
             val json = result.get(PAGE_TIMEOUT_S, TimeUnit.SECONDS)
             return try {
-                TikTokPage.parse(json) to ua
+                Loaded(TikTokPage.parse(json), ua, canonicalAddr)
             } catch (e: EngineException) {
-                DebugLog.add("tiktok", "page not usable: ${TikTokPage.shape(json)}")
+                DebugLog.add("tiktok", "page not usable (stage $stage, page ${pageUrl.ifEmpty { "-" }}): ${TikTokPage.shape(json)}")
                 throw e
             }
         } catch (e: ExecutionException) {
@@ -166,14 +207,14 @@ object TikTokFetcher {
         }
     }
 
-    private fun fetch(mediaUrl: String, target: File, ua: String, cancelled: AtomicBoolean, onProgress: (Float, Long, String) -> Unit) {
+    private fun fetch(mediaUrl: String, target: File, ua: String, pageUrl: String?, cancelled: AtomicBoolean, onProgress: (Float, Long, String) -> Unit) {
         val part = File(target.parentFile, target.name + ".part")
         val conn = URL(mediaUrl).openConnection() as HttpURLConnection
         try {
             conn.connectTimeout = 15_000
             conn.readTimeout = 30_000
             conn.setRequestProperty("User-Agent", ua)
-            conn.setRequestProperty("Referer", "https://www.tiktok.com/")
+            conn.setRequestProperty("Referer", pageUrl ?: "https://www.tiktok.com/")
             conn.setRequestProperty("Accept", "*/*")
             conn.setRequestProperty("Range", "bytes=0-")
             // The web view's cookie store decides which cookies belong to this address.

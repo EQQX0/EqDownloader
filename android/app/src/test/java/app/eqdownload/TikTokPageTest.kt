@@ -98,6 +98,35 @@ class TikTokPageTest {
     }
 
     @Test
+    fun canonicalUrlStripsTheQueryAndAcceptsSubdomains() {
+        val want = "https://www.tiktok.com/@some.user_1/video/7706848607252565255"
+        assertEquals(want, TikTokPage.canonicalUrl("https://www.tiktok.com/@some.user_1/video/7706848607252565255?_r=1&u_code=abc#x"))
+        assertEquals(want, TikTokPage.canonicalUrl("https://m.tiktok.com/@some.user_1/video/7706848607252565255/"))
+        assertEquals(want, TikTokPage.canonicalUrl("https://tiktok.com/@some.user_1/video/7706848607252565255"))
+        assertEquals(want, TikTokPage.canonicalUrl(want))
+    }
+
+    @Test
+    fun canonicalUrlIsNullForAnythingButAVideoPage() {
+        assertEquals(null, TikTokPage.canonicalUrl("https://vt.tiktok.com/ZSabc123/"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://vm.tiktok.com/ZSabc123/"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://example.com/@user/video/123"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://nottiktok.com/@user/video/123"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://www.tiktok.com/@user/photo/123"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://www.tiktok.com/@user/video/abc"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://www.tiktok.com/@user"))
+        assertEquals(null, TikTokPage.canonicalUrl("not a url"))
+        assertEquals(null, TikTokPage.canonicalUrl("https://"))
+        assertEquals(null, TikTokPage.canonicalUrl(""))
+    }
+
+    @Test
+    fun withoutQueryDropsQueryAndFragment() {
+        assertEquals("https://www.tiktok.com/@u/video/1", TikTokPage.withoutQuery("https://www.tiktok.com/@u/video/1?a=b#c"))
+        assertEquals("https://www.tiktok.com/@u/video/1", TikTokPage.withoutQuery("https://www.tiktok.com/@u/video/1"))
+    }
+
+    @Test
     fun shapeListsKeyNamesOnly() {
         val s = TikTokPage.shape(page("""{"playAddr":"https://cdn.test/secret-token.mp4"}""", desc = "private words"))
         assertTrue(s, s.contains("webapp.video-detail"))
