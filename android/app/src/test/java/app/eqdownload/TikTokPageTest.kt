@@ -80,4 +80,30 @@ class TikTokPageTest {
         assertEquals(1_572_864L, ProgressParser.speedBps(line))
         assertEquals(1024L, ProgressParser.speedBps(TikTokFetcher.progressLine(1.0, 1024.0)))
     }
+
+    @Test
+    fun findsTheVideoWhenTheDetailBlockHasAnotherNameOrShape() {
+        val renamed = """{"__DEFAULT_SCOPE__":{"webapp.video-detail-v2":{"statusCode":0,"itemInfo":{"itemStruct":{"id":"5","desc":"x","video":{"playAddr":"https://cdn.test/p.mp4"}}}}}}"""
+        assertEquals(listOf("https://cdn.test/p.mp4"), TikTokPage.parse(renamed).urls)
+        val moved = """{"__DEFAULT_SCOPE__":{"webapp.other":{"data":[{"id":"6","desc":"y","video":{"downloadAddr":"https://cdn.test/d.mp4"}}]}}}"""
+        assertEquals("6", TikTokPage.parse(moved).id)
+    }
+
+    @Test
+    fun isReadyWaitsForAVideoOrAStatusCode() {
+        assertEquals(false, TikTokPage.isReady("""{"__DEFAULT_SCOPE__":{"webapp.app-context":{}}}"""))
+        assertEquals(false, TikTokPage.isReady("nonsense"))
+        assertEquals(true, TikTokPage.isReady(page("""{"playAddr":"https://cdn.test/a.mp4"}""")))
+        assertEquals(true, TikTokPage.isReady(page("""{}""", status = 10204)))
+    }
+
+    @Test
+    fun shapeListsKeyNamesOnly() {
+        val s = TikTokPage.shape(page("""{"playAddr":"https://cdn.test/secret-token.mp4"}""", desc = "private words"))
+        assertTrue(s, s.contains("webapp.video-detail"))
+        assertTrue(s, s.contains("itemInfo"))
+        assertEquals(false, s.contains("secret-token"))
+        assertEquals(false, s.contains("private words"))
+        assertEquals("not json (7 chars)", TikTokPage.shape("garbage"))
+    }
 }

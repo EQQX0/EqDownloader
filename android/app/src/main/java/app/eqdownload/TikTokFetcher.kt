@@ -104,6 +104,7 @@ object TikTokFetcher {
                 }
                 var tries = 0
                 var polling = false
+                var lastText: String? = null
                 val script = "(function(){var e=document.getElementById('${TikTokPage.DATA_ELEMENT_ID}');return e?e.textContent:null})()"
                 val poll = object : Runnable {
                     override fun run() {
@@ -113,9 +114,15 @@ object TikTokFetcher {
                         }
                         w.evaluateJavascript(script) { raw ->
                             val text = if (raw == null || raw == "null") null else (JSONTokener(raw).nextValue() as? String)
+                            if (text != null) lastText = text
                             when {
-                                text != null -> result.complete(text)
-                                ++tries >= POLL_TRIES -> result.completeExceptionally(EngineException("unknown", "TikTok's page did not load in time."))
+                                // A page can hold the data block without the video (a redirect page, a check): keep waiting.
+                                text != null && TikTokPage.isReady(text) -> result.complete(text)
+                                ++tries >= POLL_TRIES -> {
+                                    val last = lastText
+                                    if (last != null) result.complete(last)
+                                    else result.completeExceptionally(EngineException("unknown", "TikTok's page did not load in time."))
+                                }
                                 else -> main.postDelayed(this, POLL_MS)
                             }
                         }
@@ -141,7 +148,12 @@ object TikTokFetcher {
         }
         try {
             val json = result.get(PAGE_TIMEOUT_S, TimeUnit.SECONDS)
-            return TikTokPage.parse(json) to ua
+            return try {
+                TikTokPage.parse(json) to ua
+            } catch (e: EngineException) {
+                DebugLog.add("tiktok", "page not usable: ${TikTokPage.shape(json)}")
+                throw e
+            }
         } catch (e: ExecutionException) {
             throw e.cause ?: e
         } catch (e: TimeoutException) {

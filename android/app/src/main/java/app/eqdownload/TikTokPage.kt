@@ -23,12 +23,12 @@ object TikTokPage {
         } catch (e: Exception) {
             throw EngineException("unknown", "TikTok's page could not be read.")
         }
-        val detail = root.optJSONObject("__DEFAULT_SCOPE__")?.optJSONObject("webapp.video-detail")
+        val detail = videoDetail(root)
         val status = detail?.optInt("statusCode", 0) ?: 0
         if (status != 0) {
             throw EngineException("blocked", "TikTok would not show this video (code $status). It may be private, removed or limited to some accounts.")
         }
-        val item = detail?.optJSONObject("itemInfo")?.optJSONObject("itemStruct")
+        val item = detail?.optJSONObject("itemInfo")?.optJSONObject("itemStruct") ?: findItem(root)
             ?: throw EngineException("unknown", "TikTok's page held no video data.")
         val video = item.optJSONObject("video")
             ?: throw EngineException("unknown", "TikTok's page held no video. Photo posts are not supported.")
@@ -47,6 +47,48 @@ object TikTokPage {
         val usable = urls.filter { it.startsWith("https://") }.distinct()
         if (usable.isEmpty()) throw EngineException("unknown", "TikTok's page held no video address.")
         return Media(item.optString("id"), item.optString("desc").trim(), usable)
+    }
+
+    /** The `webapp.video-detail` block, wherever it sits under the page's default scope. */
+    private fun videoDetail(root: JSONObject): JSONObject? {
+        val scope = root.optJSONObject("__DEFAULT_SCOPE__") ?: return null
+        scope.optJSONObject("webapp.video-detail")?.let { return it }
+        val key = scope.keys().asSequence().firstOrNull { it.contains("video-detail") }
+        return key?.let { scope.optJSONObject(it) }
+    }
+
+    /** Last resort: any object in the page that has an id and a video with a play address, found by walking the JSON. */
+    private fun findItem(node: Any?, depth: Int = 0): JSONObject? {
+        if (depth > 12) return null
+        when (node) {
+            is JSONObject -> {
+                val video = node.optJSONObject("video")
+                if (video != null && node.has("id") && (video.has("playAddr") || video.has("bitrateInfo") || video.has("downloadAddr"))) return node
+                for (k in node.keys()) findItem(node.opt(k), depth + 1)?.let { return it }
+            }
+            is JSONArray -> for (i in 0 until node.length()) findItem(node.opt(i), depth + 1)?.let { return it }
+        }
+        return null
+    }
+
+    /** True once the page holds either a video or a status code, so an interim page (redirect, challenge) is skipped. */
+    fun isReady(json: String): Boolean = try {
+        val root = JSONObject(json)
+        val detail = videoDetail(root)
+        (detail?.optInt("statusCode", 0) ?: 0) != 0 || detail?.optJSONObject("itemInfo")?.optJSONObject("itemStruct") != null || findItem(root) != null
+    } catch (e: Exception) {
+        false
+    }
+
+    /** Key names only (no values, so nothing personal), to see why a page held no video. */
+    fun shape(json: String): String = try {
+        val root = JSONObject(json)
+        val scope = root.optJSONObject("__DEFAULT_SCOPE__")
+        val detail = videoDetail(root)
+        val names = { o: JSONObject? -> o?.keys()?.asSequence()?.toList()?.sorted()?.take(40)?.joinToString(",") ?: "-" }
+        "root[${names(root)}] scope[${names(scope)}] detail[${names(detail)}] item[${names(detail?.optJSONObject("itemInfo"))}] status=${detail?.opt("statusCode") ?: "-"} msg=${detail?.optString("statusMsg").orEmpty().take(60)}"
+    } catch (e: Exception) {
+        "not json (${json.length} chars)"
     }
 
     private fun stringOf(v: Any?): List<String> = if (v is String && v.isNotBlank()) listOf(v) else emptyList()
