@@ -18,6 +18,11 @@ import yt_dlp
 
 MAX_BYTES = 80_000_000
 CHUNK = 512 * 1024  # a thread hop per chunk: big chunks keep it fast
+# This page serves two sites only. The apps cover the rest.
+SITES = ('tiktok.com', 'instagram.com')
+# Single posts only: no profile, tag or story pages.
+EXTRACTORS = ['TikTok', r'vm\.tiktok', 'Instagram']
+ONLY = 'This page saves TikTok and Instagram videos only. For other sites, use the Windows or Android app.'
 
 
 def addr_is_public(addr: str) -> bool:
@@ -36,6 +41,11 @@ def host_is_public(host: str) -> bool:
         return False
 
 
+def supported_host(host) -> bool:
+    h = (host or '').lower().rstrip('.')
+    return any(h == s or h.endswith('.' + s) for s in SITES)
+
+
 def public_http_url(raw: str) -> bool:
     try:
         u = urlparse(raw or '')
@@ -45,13 +55,20 @@ def public_http_url(raw: str) -> bool:
     return u.scheme in ('http', 'https') and bool(host) and port in (None, 80, 443) and host_is_public(host)
 
 
-def resolve(page_url: str, format_id: str):
+def resolve(page_url: str, format_id: str, index=None):
     opts = {
         'quiet': True, 'no_warnings': True, 'skip_download': True, 'noplaylist': True, 'socket_timeout': 10,
-        'ignoreconfig': True, 'allowed_extractors': ['default', '-generic'], 'cachedir': False,
+        'ignoreconfig': True, 'allowed_extractors': EXTRACTORS, 'cachedir': False,
     }
     with yt_dlp.YoutubeDL(opts) as ydl:
         info = ydl.extract_info(page_url, download=False)
+        if info.get('entries') is not None:  # a post with several videos
+            entries = list(info['entries'])
+            if (index or 0) >= len(entries) or not entries[index or 0]:
+                raise LookupError('entry')
+            info = {'title': info.get('title'), **entries[index or 0]}
+        elif index:
+            raise LookupError('entry')
         chosen = next((f for f in info.get('formats') or [] if f.get('format_id') == format_id and f.get('url')), None)
         if not chosen:
             raise LookupError('format')
@@ -121,8 +138,11 @@ async def app(scope, receive, send):
     qs = parse_qs(scope.get('query_string', b'').decode())
     page = (qs.get('url') or [''])[0]
     fid = (qs.get('f') or [''])[0]
-    if not fid or len(page) > 2000 or not public_http_url(page):
+    index = (qs.get('i') or [''])[0]
+    if not fid or len(page) > 2000 or not public_http_url(page) or (index and not re.fullmatch(r'[0-9]{1,2}', index)):
         return await reply_json(send, 400, {'error': 'Bad link.'})
+    if not supported_host(urlparse(page).hostname):
+        return await reply_json(send, 400, {'error': ONLY})
     rng = (qs.get('r') or [''])[0]
     if rng and not re.fullmatch(r'\d{1,9}-\d{1,9}', rng):
         return await reply_json(send, 400, {'error': 'Bad range.'})
@@ -131,7 +151,7 @@ async def app(scope, receive, send):
         if b < a or b - a >= MAX_BYTES:
             return await reply_json(send, 400, {'error': 'Bad range.'})
     try:
-        media, headers, title, ext = await asyncio.to_thread(resolve, page, fid)
+        media, headers, title, ext = await asyncio.to_thread(resolve, page, fid, int(index) if index else None)
     except (LookupError, PermissionError):
         return await reply_json(send, 422, {'error': 'That file is not available.'})
     except Exception:

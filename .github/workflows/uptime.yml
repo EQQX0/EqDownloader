@@ -17,7 +17,7 @@ jobs:
           # Up = any response below 500. nginx returns 502 when its backend is down,
           # and Cloudflare returns 530 when the tunnel is down.
           fail=""
-          for url in https://downloader.eqqx2.com/api/probe https://gym.eqqx2.com/api/; do
+          for url in https://gym.eqqx2.com/api/; do
             code=$(curl -s -o /dev/null -m 20 --retry 2 --retry-delay 5 -w '%{http_code}' "$url" || echo 000)
             echo "$url -> $code"
             if [ "$code" -ge 500 ] || [ "$code" -eq 000 ]; then fail="$fail $url($code)"; fi

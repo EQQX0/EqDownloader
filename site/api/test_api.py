@@ -37,8 +37,17 @@ class PickFormats(unittest.TestCase):
 
 
 class Explain(unittest.TestCase):
-    def test_bot_check_message(self):
-        self.assertTrue(probe.explain("Sign in to confirm you're not a bot").startswith('This site blocks'))
+    def test_address_block_offers_the_app(self):
+        msg = probe.explain('[TikTok] 1: Your IP address is blocked from accessing this post')
+        self.assertTrue(msg.startswith('This site blocks'))
+
+    def test_empty_instagram_response_means_login(self):
+        msg = probe.explain('[Instagram] x: Instagram sent an empty media response. Use --cookies for the authentication.')
+        self.assertIn('login', msg)
+
+    def test_photo_post(self):
+        for err in ('[Instagram] x: There is no video in this post', '[Instagram] x: No video formats found!'):
+            self.assertIn('not photos', probe.explain(err))
 
     def test_unknown_error_is_generic(self):
         self.assertEqual(probe.explain('boom'), 'Could not read that link.')
@@ -73,10 +82,138 @@ class Ranges(unittest.TestCase):
         dl.resolve = lambda *a: ('https://example.com/v.mp4', {}, 't', 'mp4')
         dl.public_http_url = lambda u: True
         try:
-            self.assertEqual(self.run_dl('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=abc'), 400)
-            self.assertEqual(self.run_dl('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=9-1'), 400)
+            self.assertEqual(self.run_dl('url=https%3A%2F%2Fwww.tiktok.com%2Fp&f=1&r=abc'), 400)
+            self.assertEqual(self.run_dl('url=https%3A%2F%2Fwww.tiktok.com%2Fp&f=1&r=9-1'), 400)
         finally:
             dl.resolve, dl.public_http_url = orig, orig_pub
+
+
+GOOD_HOSTS = ['tiktok.com', 'www.tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com', 'instagram.com',
+              'www.instagram.com', 'WWW.TikTok.com']
+BAD_HOSTS = ['youtube.com', 'www.youtube.com', 'youtu.be', 'tiktok.com.evil.example', 'eviltiktok.com',
+             'instagram.com.evil.example', 'notinstagram.com', 'example.com', '', None]
+
+
+def call_dl(query):
+    """Run dl.app with the network stubbed. Returns (messages sent, resolve calls)."""
+    import asyncio
+    sent, calls = [], []
+
+    async def send(m):
+        sent.append(m)
+
+    orig = dl.resolve, dl.public_http_url
+    dl.resolve = lambda *a: calls.append(a)
+    dl.public_http_url = lambda u: True
+    try:
+        asyncio.run(dl.app({'type': 'http', 'query_string': query.encode()}, None, send))
+    finally:
+        dl.resolve, dl.public_http_url = orig
+    return sent, calls
+
+
+class SupportedSites(unittest.TestCase):
+    def test_host_list_in_both_modules(self):
+        for mod in (probe, dl):
+            for h in GOOD_HOSTS:
+                self.assertTrue(mod.supported_host(h), h)
+            for h in BAD_HOSTS:
+                self.assertFalse(mod.supported_host(h), h)
+
+    def test_probe_refuses_other_sites(self):
+        for bad in ('https://www.youtube.com/watch?v=jNQXAC9IVRw', 'https://youtu.be/jNQXAC9IVRw',
+                    'https://www.tiktok.com@youtube.com/x'):
+            self.assertEqual(probe.check_url(bad), (None, probe.ONLY), bad)
+
+    def test_download_refuses_other_sites_before_any_lookup(self):
+        sent, calls = call_dl('url=https%3A%2F%2Fyoutu.be%2Fx&f=1')
+        self.assertEqual(sent[0]['status'], 400)
+        self.assertIn(b'TikTok and Instagram', sent[1]['body'])
+        self.assertEqual(calls, [])
+
+    def test_only_single_post_extractors_are_loaded(self):
+        import yt_dlp
+        for mod in (probe, dl):
+            with yt_dlp.YoutubeDL({'quiet': True, 'allowed_extractors': mod.EXTRACTORS}) as ydl:
+                names = sorted(ie.IE_NAME for ie in ydl._ies.values())
+            self.assertEqual(names, ['Instagram', 'TikTok', 'vm.tiktok'])
+
+
+def video(i, h=None, v=None, a=None):
+    return {'format_id': i, 'url': 'https://cdn.example/' + i, 'height': h, 'vcodec': v, 'acodec': a,
+            'protocol': 'https', 'ext': 'mp4'}
+
+
+PAGE = 'https://www.instagram.com/p/x/'
+
+
+class SilentVideos(unittest.TestCase):
+    def test_post_without_any_sound_offers_the_video(self):
+        info = {'formats': [video('0', a='none'), video('d720', 720, 'avc1', 'none')]}
+        out = probe.list_formats(info, PAGE, False)
+        self.assertTrue(out)
+        self.assertTrue(all('(no sound)' in f['label'] and f['kind'] == 'video' for f in out))
+
+    def test_video_only_stream_is_not_offered_when_the_post_has_sound(self):
+        info = {'formats': [video('d720', 720, 'avc1', 'none'), video('aud', 0, 'none', 'mp4a')]}
+        out = probe.list_formats(info, PAGE, False)
+        self.assertEqual([f['kind'] for f in out], ['audio'])
+
+
+class SeveralVideos(unittest.TestCase):
+    def info(self):
+        return {'_type': 'playlist', 'entries': [
+            {'formats': [video('1'), video('aud', 0, 'none', 'mp4a')]},
+            {'formats': []},
+            {'formats': [video('1', a='none')]},
+        ]}
+
+    def test_one_link_per_video_with_its_position(self):
+        out = probe.list_formats(self.info(), PAGE, True)
+        self.assertEqual([f['label'] for f in out], ['Video 1 mp4', 'Video 2 mp4 (no sound)'])
+        self.assertTrue(out[0]['url'].endswith('&f=1&i=0'), out[0]['url'])
+        self.assertTrue(out[1]['dl'].endswith('&f=1&i=2'), out[1]['dl'])
+
+    def test_at_most_ten(self):
+        info = {'entries': [{'formats': [video('1')]} for _ in range(14)]}
+        self.assertEqual(len(probe.list_formats(info, PAGE, False)), 10)
+
+    def test_resolve_picks_the_requested_entry(self):
+        import yt_dlp
+        entries = [{'formats': [video('1')]}, {'formats': [dict(video('1'), url='https://cdn.example/second')]}]
+
+        class Jar:
+            def get_cookie_header(self, url):
+                return None
+
+        class Fake:
+            def __init__(self, *a, **k):
+                self.cookiejar = Jar()
+
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *a):
+                return False
+
+            def extract_info(self, url, download=False):
+                return {'title': 't', 'entries': entries}
+
+        orig = yt_dlp.YoutubeDL, dl.public_http_url
+        yt_dlp.YoutubeDL, dl.public_http_url = Fake, lambda u: True
+        try:
+            self.assertEqual(dl.resolve('p', '1', 1)[0], 'https://cdn.example/second')
+            self.assertEqual(dl.resolve('p', '1')[0], 'https://cdn.example/1')
+            with self.assertRaises(LookupError):
+                dl.resolve('p', '1', 5)
+        finally:
+            yt_dlp.YoutubeDL, dl.public_http_url = orig
+
+    def test_bad_index_is_refused(self):
+        for bad in ('-1', 'abc', '100', '1.5'):
+            sent, calls = call_dl('url=https%3A%2F%2Fwww.instagram.com%2Fp%2Fx&f=1&i=' + bad)
+            self.assertEqual(sent[0]['status'], 400, bad)
+            self.assertEqual(calls, [], bad)
 
 
 def fake_addrinfo(*addrs):
@@ -137,7 +274,7 @@ class Hardening(unittest.TestCase):
         dl.resolve = lambda *a: calls.append(a) or ('https://example.com/v.mp4', {}, 't', 'mp4')
         dl.public_http_url = lambda u: True
         try:
-            sent = self.run_app('url=https%3A%2F%2Fexample.com%2Fp&f=1&r=9-1')
+            sent = self.run_app('url=https%3A%2F%2Fwww.tiktok.com%2Fp&f=1&r=9-1')
             self.assertEqual(sent[0]['status'], 400)
             self.assertEqual(calls, [])
         finally:
@@ -183,7 +320,7 @@ class Hardening(unittest.TestCase):
         dl.public_http_url = lambda u: True
         dl.open_media = lambda m, h: Resp()
         try:
-            sent = self.run_app('url=https%3A%2F%2Fexample.com%2Fp&f=1')
+            sent = self.run_app('url=https%3A%2F%2Fwww.tiktok.com%2Fp&f=1')
         finally:
             dl.resolve, dl.public_http_url, dl.open_media = orig
         return dict(sent[0]['headers'])[b'content-type'].decode()

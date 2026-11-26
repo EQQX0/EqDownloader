@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<title>EqDownload: save video and audio from a link</title>
-<meta name="description" content="Fast video and audio downloads: paste a link and save it in your browser or with the Windows and Android apps. Parallel connections, no ads, accounts or analytics.">
+<title>EqDownload: save TikTok and Instagram videos</title>
+<meta name="description" content="Paste a TikTok or Instagram link and save the video or the audio in your browser. The Windows and Android apps cover more sites. No ads, accounts or analytics.">
 <meta name="theme-color" content="#0B132B">
 <meta name="color-scheme" content="dark">
 <meta name="apple-mobile-web-app-title" content="EqDownload">
@@ -39,9 +39,9 @@
       <span class="bar-copy"></span>
     </div>
     <div class="hero-copy">
-      <p class="lead" data-reveal>Paste a link. Save the video or the audio.</p>
+      <p class="lead" data-reveal>Paste a TikTok or Instagram link. Save the video or the audio.</p>
       <form id="finder" class="finder" data-reveal>
-        <label class="visually-hidden" for="link">Link to a video or audio page</label>
+        <label class="visually-hidden" for="link">Link to a TikTok or Instagram video</label>
         <input id="link" name="url" type="url" inputmode="url" autocomplete="off" autocapitalize="off" spellcheck="false" placeholder="https://" required>
         <div class="finder-actions">
           <button class="button paste" type="button" id="paste" hidden>Paste</button>
@@ -138,7 +138,7 @@
       </details>
       <details data-reveal>
         <summary>Can I share a link to EqDownload from my iPhone?</summary>
-        <p>Yes, with a Shortcut that you make once. Open the Shortcuts app and tap +. Tap the name at the top and choose Details, then turn on Show in Share Sheet and set it to accept URLs and Text. Add the action Text and type <code>https://download.eqqx2.com/?url=</code>, then tap after it and insert the variable Shortcut Input. Add the action Open URLs and give it that text. Name the shortcut EqDownload. Now in Safari, YouTube, TikTok or any app, tap Share, then EqDownload. The page opens with the link already checked. The same limits as the page apply: sites that block this server still need the Windows or Android app.</p>
+        <p>Yes, with a Shortcut that you make once. Open the Shortcuts app and tap +. Tap the name at the top and choose Details, then turn on Show in Share Sheet and set it to accept URLs and Text. Add the action Text and type <code>https://download.eqqx2.com/?url=</code>, then tap after it and insert the variable Shortcut Input. Add the action Open URLs and give it that text. Name the shortcut EqDownload. Now in Safari, TikTok, Instagram or any app, tap Share, then EqDownload. The page opens with the link already checked. The same limits as the page apply: private posts, and posts the site hides from this server, need the Windows or Android app.</p>
       </details>
       <details data-reveal>
         <summary>How do I save a video on my iPhone?</summary>
@@ -146,11 +146,11 @@
       </details>
       <details data-reveal>
         <summary>Why is there no iPhone app?</summary>
-        <p>iOS does not let an app run yt-dlp the way Windows and Android do, and building and signing an iPhone app needs Apple&rsquo;s paid developer account. None is planned. This page covers the sites a browser can reach.</p>
+        <p>iOS does not let an app run yt-dlp the way Windows and Android do, and building and signing an iPhone app needs Apple&rsquo;s paid developer account. None is planned. This page covers TikTok and Instagram.</p>
       </details>
       <details data-reveal>
         <summary>Which sites work in the browser?</summary>
-        <p>Sites that serve a plain video or audio file, such as the Internet Archive, and TikTok. TikTok videos save without the TikTok logo; some TikTok links are refused for the server&rsquo;s address, and the apps then work better. YouTube blocks the server this page runs on with a bot check. Vimeo and Reddit want a login. Dailymotion and SoundCloud stream in pieces that need ffmpeg to join. The apps run on your own connection with ffmpeg and handle all of those.</p>
+        <p>TikTok and Instagram, one post at a time: videos up to 80 MB and their audio, not photos. TikTok videos save without the TikTok logo. Private and age restricted posts are refused, and so are some others that these sites hide from this page&rsquo;s server. The Windows and Android apps run on your own connection, can sign in to your account, and cover more sites, YouTube included.</p>
       </details>
       <details data-reveal>
         <summary>Why the warnings, and is the file genuine?</summary>
@@ -160,7 +160,7 @@
       </details>
       <details data-reveal>
         <summary>What does it send about me?</summary>
-        <p>The apps send nothing to anyone but the site you pasted and, on a button press, GitHub. This page is different: the link you paste goes to this page&rsquo;s server, which asks the site for the file list. The function stores nothing, but Vercel, the host, keeps ordinary request logs that include the link. For sites whose file links need cookies, such as TikTok, the video file also passes through that server on its way to you, because TikTok&rsquo;s file links only work with cookies a browser cannot send. Thumbnails load from the video site straight to your device. There are no ads, accounts or analytics.</p>
+        <p>The apps send nothing to anyone but the site you pasted and, on a button press, GitHub. This page is different: the link you paste goes to this page&rsquo;s server, which asks the site for the file list. The function stores nothing, but Vercel, the host, keeps ordinary request logs that include the link. TikTok and Instagram files usually pass through that server on their way to you too, because their file links need cookies a browser cannot send. Thumbnails load from the video site straight to your device. There are no ads, accounts or analytics.</p>
       </details>
       <details data-reveal>
         <summary>Is the Android app tested?</summary>

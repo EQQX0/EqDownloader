@@ -16,7 +16,7 @@ Both files are on the [Releases page](https://github.com/EQQX0/EqDownloader/rele
 
 Check the downloads against `SHA256SUMS.txt` on the release.
 
-**In a browser.** https://download.eqqx2.com takes a pasted link and returns direct download links, so an iPhone can save a file without an app. It works only for sites that serve a plain video or audio file, such as the Internet Archive. YouTube blocks the host's servers, and sites that stream in pieces need ffmpeg, so those need the apps. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. For sites whose file links need cookies a browser cannot send (TikTok), the file itself is streamed through that server (up to 80 MB).
+**In a browser.** https://download.eqqx2.com takes a pasted TikTok or Instagram link and returns download links, so an iPhone can save a video or its audio without an app. It reads one post at a time and refuses other sites, which need the apps, as do private posts and posts these sites hide from the server. The page's source is in `site/`; the link you paste goes to that server and appears in the host's request logs. When a file link needs cookies a browser cannot send, the file itself is streamed through that server (up to 80 MB).
 
 ## Use
 

@@ -19,16 +19,18 @@
   // The finder: ask /api/probe for the file list, then show plain links the browser downloads itself.
   const form = document.getElementById('finder');
   const out = document.getElementById('result');
-  // YouTube blocks Vercel's servers, so YouTube links go to the home server instead. Everything else stays on this site.
-  const PHONE = 'https://downloader.eqqx2.com';
-  const isYouTube = (text) => {
+  // This page saves from two sites only. The server enforces the same list.
+  const SITES = ['tiktok.com', 'instagram.com'];
+  const ONLY = 'This page saves TikTok and Instagram videos only. For other sites, use the Windows or Android app.';
+  const isSupported = (text) => {
     try {
-      const h = new URL(/^https?:\/\//i.test(text) ? text : 'https://' + text).hostname.toLowerCase().replace(/^www\./, '');
-      return h === 'youtu.be' || h === 'youtube.com' || h.endsWith('.youtube.com') || h === 'youtube-nocookie.com';
+      const h = new URL(text).hostname.toLowerCase().replace(/\.$/, '');
+      return SITES.some((s) => h === s || h.endsWith('.' + s));
     } catch { return false; }
   };
   const safe = (u) => typeof u === 'string' && /^(https?:\/\/|\/api\/dl\?)/.test(u);
   const say = (text) => { out.textContent = ''; const p = document.createElement('p'); p.textContent = text; out.append(p); };
+  const offerApp = () => { const a = document.createElement('a'); a.className = 'button'; a.href = '#get'; a.textContent = 'Get the app'; out.append(a); };
   // Chrome and Edge on a PC: pick a folder once (create Downloads\EqDownload), then every save goes there without asking.
   const kv = {
     db: null,
@@ -175,6 +177,7 @@
     e.preventDefault();
     const link = form.elements.url.value.trim();
     if (!link) return;
+    if (!isSupported(link)) { say(ONLY); offerApp(); return; }
     out.textContent = '';
     const lp = document.createElement('p'); lp.textContent = 'Looking...';
     const bar = document.createElement('div'); bar.className = 'loader'; bar.setAttribute('role', 'progressbar'); bar.setAttribute('aria-label', 'Reading the link');
@@ -182,23 +185,16 @@
     out.append(lp, bar);
     const go = form.querySelector('button[type=submit]');
     go.disabled = true;
-    const viaPhone = location.origin !== PHONE && isYouTube(link);
     try {
-      let res;
-      try { res = await fetch((viaPhone ? PHONE : '') + '/api/probe?url=' + encodeURIComponent(link)); }
-      catch { if (viaPhone) { say('The YouTube server is not answering right now. Use the Windows or Android app.'); return; } throw new Error('offline'); }
+      const res = await fetch('/api/probe?url=' + encodeURIComponent(link));
       let data;
       try { data = await res.json(); } catch { say(res.ok ? 'Could not read that link.' : 'The server took too long or failed. Try again.'); return; }
       if (!res.ok) {
         say(data.error || 'Could not read that link.');
-        if (data.blocked) {
-          const a = document.createElement('a'); a.className = 'button'; a.href = '#get'; a.textContent = 'Get the app';
-          out.append(a);
-        }
+        if (data.blocked) offerApp();
         return;
       }
       out.textContent = '';
-      if (viaPhone) for (const f of data.formats) { if (f.url && f.url.startsWith('/')) f.url = PHONE + f.url; f.dl = undefined; }
       if (safe(data.thumbnail)) {
         const img = document.createElement('img');
         img.src = data.thumbnail; img.alt = ''; img.referrerPolicy = 'no-referrer'; img.loading = 'lazy';
